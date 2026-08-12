@@ -252,7 +252,7 @@ tbody tr:hover{background:rgba(120,160,255,.07)}
 
 <script>
 // 内联模式：inject_cyber.py 把下面这唯一的占位符替换为真实数据；外壳模式替换为 undefined(走 fetch)。
-const DATA = undefined;
+let DATA = undefined;
 let SW,BAND,FUND,META,BS;
 // 数据就绪后统一初始化（内联模式立即调用；外壳模式在 fetch 成功后调用）
 function startApp(){
