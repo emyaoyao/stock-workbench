@@ -15,11 +15,6 @@ DATA = HERE / "workbench_data.json"
 PUB = pathlib.Path(os.environ.get("WB_PUBLISH_DIR", HERE / "publish"))
 PUB.mkdir(exist_ok=True)
 
-# Token：优先环境变量（CI/云端），回退本地 publish/.ghtoken
-TOK = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
-if not TOK:
-    TOK = (HERE / "publish" / ".ghtoken").read_text(encoding="utf-8").strip()
-
 # ---------- 1) 外壳版 index.html ----------
 tpl = TPL.read_text(encoding="utf-8")
 n = tpl.count("__DATA__")
@@ -64,6 +59,10 @@ def put(path, sha=None):
 if os.environ.get("WB_SKIP_PUSH"):
     print("WB_SKIP_PUSH 已设置：跳过 Contents API 推送，产物位于", PUB)
 else:
+    # Token：优先环境变量（CI/云端），回退本地 publish/.ghtoken
+    TOK = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+    if not TOK:
+        TOK = (HERE / "publish" / ".ghtoken").read_text(encoding="utf-8").strip()
     for f in (PUB / "index.html", PUB / "data.json", PUB / ".nojekyll"):
         st = put(f)
         print("pushed", f.name, "-> HTTP", st)
