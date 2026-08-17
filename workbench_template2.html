@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>股票板块数据工作台 · NEON</title>
+<style>
+:root{
+  --bg:#060814; --bg2:#0a0f24; --panel:rgba(16,22,48,.72); --panel2:rgba(10,16,38,.9);
+  --cyan:#16f2e6; --magenta:#ff2bd6; --violet:#9b6bff; --green:#27ff9e; --red:#ff3b5b;
+  --text:#dbe7ff; --muted:#7e8bb5; --line:rgba(120,160,255,.16);
+  --up:#ff3b5b; --down:#27ff9e;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  font-family:"Segoe UI",system-ui,"PingFang SC","Microsoft YaHei",sans-serif;
+  background:radial-gradient(1200px 800px at 80% -10%,#14224d 0%,transparent 60%),
+             radial-gradient(900px 700px at -10% 110%,#2a0f3d 0%,transparent 55%),var(--bg);
+  color:var(--text); overflow:hidden;
+}
+#particles{position:fixed;inset:0;z-index:0;display:block}
+.app{position:relative;z-index:1;display:flex;height:100vh;width:100%}
+.loading{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:var(--bg);color:var(--muted);font-size:15px;letter-spacing:2px}
+.loading .spin{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--cyan);border-radius:50%;animation:spin 1s linear infinite}
+.loading .tiny{font-size:12px;color:var(--down);letter-spacing:0;text-align:center;max-width:80vw;line-height:1.6}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ===== Sidebar (PC) ===== */
+.sidebar{
+  width:228px;flex:0 0 228px;background:linear-gradient(180deg,rgba(14,20,46,.92),rgba(8,12,30,.92));
+  border-right:1px solid var(--line);backdrop-filter:blur(10px);
+  display:flex;flex-direction:column;padding:18px 14px;gap:8px;
+}
+.brand{font-weight:800;font-size:18px;line-height:1.25;letter-spacing:.5px;
+  background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;background-clip:text;color:transparent;
+  text-shadow:0 0 18px rgba(22,242,230,.25);margin-bottom:6px}
+.brand small{display:block;font-size:11px;color:var(--muted);-webkit-text-fill-color:var(--muted);letter-spacing:3px;font-weight:600}
+.navbtn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:1px solid transparent;
+  background:transparent;color:var(--muted);padding:11px 12px;border-radius:12px;font-size:14.5px;cursor:pointer;
+  transition:.18s;font-weight:600}
+.navbtn:hover{color:var(--text);background:rgba(120,160,255,.08)}
+.navbtn.active{color:#fff;border-color:rgba(22,242,230,.5);
+  background:linear-gradient(90deg,rgba(22,242,230,.16),rgba(255,43,214,.10));
+  box-shadow:0 0 18px rgba(22,242,230,.25),inset 0 0 12px rgba(22,242,230,.08)}
+.navbtn .ic{font-size:17px;filter:drop-shadow(0 0 6px rgba(22,242,230,.5))}
+.sidebar-foot{margin-top:auto;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px}
+.sidebar-foot b{color:var(--cyan)}
+
+/* ===== Main ===== */
+.main{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.topbar{display:flex;align-items:center;gap:12px;padding:14px 22px;border-bottom:1px solid var(--line);
+  background:rgba(8,12,30,.55);backdrop-filter:blur(8px)}
+.top-title{font-size:18px;font-weight:800;letter-spacing:.5px}
+.top-title .neon{color:var(--cyan);text-shadow:0 0 14px rgba(22,242,230,.5)}
+.top-meta{font-size:12.5px;color:var(--muted);display:flex;gap:14px;align-items:center}
+.top-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+.tbtn{background:rgba(8,12,30,.9);border:1px solid var(--line);color:var(--text);font-size:12.5px;padding:7px 11px;border-radius:8px;cursor:pointer;transition:.15s;white-space:nowrap}
+.tbtn:hover{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 0 2px rgba(22,242,230,.15)}
+.tbtn.big{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:12px 14px;font-size:14px;min-width:200px}
+.tbtn.big .sub{font-size:11.5px;color:var(--muted);font-weight:400}
+.mhead{font-size:17px;font-weight:800;color:var(--cyan);margin-bottom:10px}
+.mmsg{color:var(--muted);margin-bottom:12px;font-size:13.5px}
+.mopts{display:flex;flex-wrap:wrap;gap:10px}
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:40;background:rgba(8,12,30,.96);border:1px solid var(--cyan);color:var(--text);padding:10px 16px;border-radius:10px;font-size:13px;opacity:0;pointer-events:none;transition:.25s;box-shadow:0 0 30px rgba(22,242,230,.3)}
+#toast.show{opacity:1}
+.top-meta b{color:var(--text)}
+.menu-toggle{display:none;background:transparent;border:1px solid var(--line);color:var(--cyan);font-size:18px;border-radius:10px;width:40px;height:38px;cursor:pointer}
+.page{flex:1;overflow:auto;padding:22px 26px 64px}
+.page::-webkit-scrollbar{width:9px;height:9px}
+.page::-webkit-scrollbar-thumb{background:rgba(120,160,255,.25);border-radius:8px}
+
+/* ===== Bottom Tab (mobile) ===== */
+.bottomtab{display:none;position:fixed;left:0;right:0;bottom:0;z-index:5;height:62px;
+  background:linear-gradient(180deg,rgba(10,15,36,.92),rgba(6,8,20,.98));border-top:1px solid var(--line);
+  backdrop-filter:blur(12px);justify-content:space-around;align-items:center}
+.bottomtab button{background:none;border:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;cursor:pointer;flex:1}
+.bottomtab button .ic{font-size:20px}
+.bottomtab button.active{color:var(--cyan);text-shadow:0 0 10px rgba(22,242,230,.6)}
+
+/* ===== Cards / panels ===== */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 18px;
+  box-shadow:0 6px 30px rgba(0,0,0,.35),inset 0 0 0 1px rgba(255,255,255,.02);
+  position:relative;overflow:hidden}
+.card::before{content:"";position:absolute;left:0;top:0;height:3px;width:100%;
+  background:linear-gradient(90deg,var(--cyan),transparent 60%);opacity:.7}
+.grid{display:grid;gap:16px}
+.cols-2{grid-template-columns:repeat(2,1fr)}
+.cols-3{grid-template-columns:repeat(3,1fr)}
+.cols-4{grid-template-columns:repeat(4,1fr)}
+.cols-5{grid-template-columns:repeat(5,1fr)}
+@media(max-width:1100px){.cols-4,.cols-5{grid-template-columns:repeat(2,1fr)}.cols-3{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:760px){.cols-2,.cols-3,.cols-4,.cols-5{grid-template-columns:1fr}}
+
+/* entrance animation */
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+.anim{animation:fadeUp .5s cubic-bezier(.2,.7,.3,1) both}
+.anim.d1{animation-delay:.05s}.anim.d2{animation-delay:.12s}.anim.d3{animation-delay:.19s}
+.anim.d4{animation-delay:.26s}.anim.d5{animation-delay:.33s}.anim.d6{animation-delay:.40s}
+
+h2.sec{font-size:15px;margin:22px 0 12px;color:var(--cyan);letter-spacing:1px;font-weight:800;
+  display:flex;align-items:center;gap:8px}
+h2.sec::before{content:"";width:6px;height:16px;background:linear-gradient(var(--cyan),var(--magenta));border-radius:3px;box-shadow:0 0 10px var(--cyan)}
+.muted{color:var(--muted)} .tiny{font-size:12px}
+.tag{display:inline-block;font-size:11px;padding:2px 9px;border-radius:20px;border:1px solid var(--line);color:var(--muted);margin-left:6px}
+
+/* entry cards */
+.entry{display:flex;flex-direction:column;gap:12px;cursor:pointer;transition:.2s}
+.entry:hover{transform:translateY(-3px);border-color:rgba(22,242,230,.5);box-shadow:0 10px 40px rgba(22,242,230,.18)}
+.entry .et{font-weight:800;font-size:16px;display:flex;align-items:center;gap:9px}
+.entry .et .ic{font-size:22px;filter:drop-shadow(0 0 8px currentColor)}
+.entry .ed{font-size:12.5px;color:var(--muted);line-height:1.5}
+.entry .acts{display:flex;gap:8px;margin-top:2px}
+.mini{font-size:12px;padding:6px 11px;border-radius:9px;border:1px solid var(--line);
+  background:rgba(120,160,255,.07);color:var(--text);cursor:pointer;font-weight:600;transition:.15s}
+.mini:hover{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 12px rgba(22,242,230,.3)}
+.mini.on{background:linear-gradient(90deg,rgba(22,242,230,.2),rgba(255,43,214,.12));border-color:var(--cyan);color:#fff}
+
+/* summary rows */
+.kpi{display:flex;flex-direction:column;gap:3px}
+.kpi .v{font-size:20px;font-weight:800}
+.kpi .l{font-size:12px;color:var(--muted)}
+.row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line)}
+.row:last-child{border-bottom:none}
+
+/* ===== Filter bar ===== */
+.filterbar{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;background:var(--panel2);
+  border:1px solid var(--line);border-radius:14px;padding:13px 15px;margin-bottom:16px;position:sticky;top:0;z-index:3}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:11px;color:var(--muted);letter-spacing:.5px}
+select,input[type=text]{background:rgba(8,12,30,.9);border:1px solid var(--line);color:var(--text);
+  padding:8px 10px;border-radius:9px;font-size:13.5px;min-width:118px;outline:none}
+select:focus,input:focus{border-color:var(--cyan);box-shadow:0 0 0 2px rgba(22,242,230,.18)}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{background:transparent;border:none;color:var(--muted);padding:8px 14px;cursor:pointer;font-size:13px;font-weight:600}
+.seg button.on{background:linear-gradient(90deg,rgba(22,242,230,.22),rgba(255,43,214,.14));color:#fff}
+.btn{background:linear-gradient(90deg,var(--cyan),var(--violet));color:#04121f;border:none;padding:9px 16px;
+  border-radius:10px;font-weight:800;cursor:pointer;font-size:13.5px;box-shadow:0 0 16px rgba(22,242,230,.35)}
+.btn.ghost{background:transparent;color:var(--cyan);border:1px solid var(--cyan)}
+
+/* module tabs */
+.modtabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.modtab{padding:9px 14px;border-radius:11px;border:1px solid var(--line);background:rgba(120,160,255,.05);
+  color:var(--muted);cursor:pointer;font-size:13.5px;font-weight:700;transition:.16s}
+.modtab:hover{color:var(--text)}
+.modtab.on{color:#fff;border-color:var(--magenta);background:linear-gradient(90deg,rgba(255,43,214,.18),rgba(155,107,255,.12));
+  box-shadow:0 0 16px rgba(255,43,214,.25)}
+
+/* ===== Tables ===== */
+.tbl-wrap{overflow:auto;border-radius:14px;border:1px solid var(--line);background:var(--panel2)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:9px 11px;text-align:right;white-space:nowrap;border-bottom:1px solid rgba(120,160,255,.08)}
+th{position:sticky;top:0;background:rgba(12,18,42,.96);color:var(--cyan);font-weight:700;z-index:2;cursor:pointer;user-select:none}
+th.sortable:hover{color:#fff;text-shadow:0 0 8px rgba(22,242,230,.55)}
+th.l,td.l{text-align:left}
+td.l{text-align:left}
+tbody tr{transition:.12s}
+tbody tr:hover{background:rgba(120,160,255,.07)}
+.tnum{font-variant-numeric:tabular-nums}
+.up{color:var(--up);font-weight:700}
+.down{color:var(--down);font-weight:700}
+.strong{font-weight:800}
+.flat{color:var(--muted)}
+.rank{display:inline-flex;width:22px;height:22px;align-items:center;justify-content:center;border-radius:7px;
+  background:rgba(120,160,255,.12);font-weight:800;font-size:12px;color:var(--muted)}
+.rank.top{background:linear-gradient(135deg,var(--magenta),var(--violet));color:#fff}
+.bname{font-weight:700;color:var(--text);cursor:pointer}
+.bname:hover{color:var(--cyan);text-shadow:0 0 8px rgba(22,242,230,.5)}
+.cnt{display:inline-block;min-width:20px;text-align:center;font-weight:800;color:var(--cyan);text-shadow:0 0 8px rgba(22,242,230,.45)}
+.chip{display:inline-block;padding:1px 7px;border-radius:6px;font-size:11.5px;background:rgba(120,160,255,.1);margin:1px}
+
+/* strong/weak panels */
+.sw-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:900px){.sw-grid{grid-template-columns:1fr}}
+.sw-strong{border-top:3px solid var(--up)}
+.sw-weak{border-top:3px solid var(--down)}
+.dayhead{display:flex;align-items:center;gap:10px;margin:4px 0 14px;flex-wrap:wrap}
+.dayhead .date{font-size:20px;font-weight:800;color:#fff}
+.pill{font-size:11.5px;padding:3px 10px;border-radius:20px;border:1px solid var(--line);color:var(--muted)}
+.pill.red{color:var(--up);border-color:rgba(255,59,91,.4)}
+.pill.green{color:var(--down);border-color:rgba(39,255,158,.4)}
+
+/* collapsible */
+.coll{margin-bottom:10px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel2)}
+.coll>.ch{padding:12px 15px;cursor:pointer;display:flex;align-items:center;gap:10px;font-weight:700}
+.coll>.ch:hover{background:rgba(120,160,255,.06)}
+.coll>.ch .ar{transition:.2s;color:var(--cyan)}
+.coll.open>.ch .ar{transform:rotate(90deg)}
+.coll>.cb{display:none;padding:6px 12px 14px}
+.coll.open>.cb{display:block}
+
+.empty{padding:40px;text-align:center;color:var(--muted)}
+.warnbar{background:rgba(255,59,91,.12);border:1px solid rgba(255,59,91,.4);color:#ffb3c0;
+  padding:10px 14px;border-radius:11px;font-size:13px;margin-bottom:14px}
+
+/* pagination */
+.pager{display:flex;gap:8px;align-items:center;justify-content:center;margin-top:14px;flex-wrap:wrap}
+.pager button{background:rgba(120,160,255,.08);border:1px solid var(--line);color:var(--text);
+  padding:6px 12px;border-radius:8px;cursor:pointer;font-size:13px}
+.pager button:disabled{opacity:.35;cursor:not-allowed}
+.pager button.on{background:linear-gradient(90deg,var(--cyan),var(--violet));color:#04121f;font-weight:800;border:none}
+
+.modal-bg{position:fixed;inset:0;z-index:20;background:rgba(2,4,12,.72);backdrop-filter:blur(3px);
+  display:none;align-items:center;justify-content:center;padding:20px}
+.modal-bg.show{display:flex}
+.modal{width:min(680px,96vw);max-height:84vh;overflow:auto;background:var(--panel2);border:1px solid var(--cyan);
+  border-radius:16px;padding:20px;box-shadow:0 0 50px rgba(22,242,230,.25)}
+.modal h3{margin:0 0 4px;color:var(--cyan)}
+.bar{height:8px;border-radius:6px;background:linear-gradient(90deg,var(--cyan),var(--magenta));margin:6px 0 14px;box-shadow:0 0 12px rgba(22,242,230,.4)}
+</style>
+</head>
+<body>
+<canvas id="particles"></canvas>
+<div id="loading" class="loading"><div class="spin"></div><div>数据加载中…</div></div>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">股票板块<br>数据工作台<small>SECTOR · NEON</small></div>
+    <nav style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+      <button class="navbtn active" data-page="home"><span class="ic">🏠</span>首页</button>
+      <button class="navbtn" data-page="board"><span class="ic">📊</span>数据看板</button>
+      <button class="navbtn" data-page="history"><span class="ic">🕓</span>历史记录</button>
+    </nav>
+    <div class="sidebar-foot">数据最新日期<br><b id="side-date">—</b><br><span class="tiny" id="side-meta"></span></div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <button class="menu-toggle" id="menuToggle">☰</button>
+      <div class="top-title" id="topTitle"><span class="neon">●</span> 首页</div>
+      <div class="top-actions">
+        <button class="tbtn" id="btnJson" title="导出当前数据为 JSON 备份">💾 备份</button>
+        <button class="tbtn" id="btnExcel" title="导出 Excel（多工作表）">📊 Excel</button>
+        <button class="tbtn" id="btnV1" title="导入 V1 工作台导出的 JSON 并迁移">📥 导入V1</button>
+        <input type="file" id="fileV1" accept=".json,application/json" style="display:none">
+      </div>
+      <div class="top-meta" id="topMeta"></div>
+    </header>
+
+    <section id="page-home" class="page"></section>
+    <section id="page-board" class="page" style="display:none"></section>
+    <section id="page-history" class="page" style="display:none"></section>
+  </main>
+</div>
+
+<nav class="bottomtab" id="bottomtab">
+  <button data-page="home" class="active"><span class="ic">🏠</span><span>首页</span></button>
+  <button data-page="board"><span class="ic">📊</span><span>看板</span></button>
+  <button data-page="history"><span class="ic">🕓</span><span>历史</span></button>
+</nav>
+
+<div class="modal-bg" id="modalBg"><div class="modal" id="modal"></div></div>
+
+<script>
+// 内联模式：inject_cyber.py 把下面这唯一的占位符替换为真实数据；外壳模式替换为 undefined(走 fetch)。
+let DATA = __DATA__;
+let SW,BAND,FUND,META,BS;
+// 数据就绪后统一初始化（内联模式立即调用；外壳模式在 fetch 成功后调用）
+function startApp(){
+  SW=DATA.strongWeak; BAND=DATA.band; FUND=DATA.fund; META=DATA.meta; BS=DATA.boardStats||{};
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const el=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;};
+
+// 绑定输入框的「边打字边过滤」逻辑，但保证中文输入法（IME）组词过程中不被重渲染打断。
+// 原理：compositionstart 期间不触发回调；compositionend / 失焦 / 回车时才提交；Latin 输入实时过滤。
+function bindSearchInput(inp, onCommit){
+  let composing=false;
+  inp.addEventListener('compositionstart',()=>{composing=true;});
+  inp.addEventListener('compositionend',()=>{composing=false; if(inp.isConnected){inp.value=inp.value; onCommit(inp.value);} });
+  inp.addEventListener('input',()=>{ if(composing||!inp.isConnected) return; onCommit(inp.value); });
+  inp.addEventListener('blur',()=>{ if(!composing&&inp.isConnected) onCommit(inp.value); });
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ if(composing)return; if(inp.isConnected) onCommit(inp.value); } });
+}
+
+// ============ toast ============
+function toast(msg){
+  let t=$('#toast');
+  if(!t){ t=document.createElement('div'); t.id='toast'; document.body.appendChild(t); }
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2400);
+}
+
+// ============ 纯 JS xlsx 生成（无依赖，离线可用） ============
+function xmlEsc(s){ return (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function colLetter(n){ let s=""; while(n>0){ const m=(n-1)%26; s=String.fromCharCode(65+m)+s; n=Math.floor((n-1)/26);} return s; }
+function sheetXML(rows, freeze){
+  let d='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">';
+  if(freeze) d+='<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>';
+  d+='<sheetData>';
+  rows.forEach((r,ri)=>{
+    d+=`<row r="${ri+1}">`;
+    r.forEach((cell,ci)=>{
+      let t="str", v=cell;
+      if(typeof cell==="number"){ t="n"; v=cell; }
+      else { t="inlineStr"; v=xmlEsc(cell); }
+      d+=`<c r="${colLetter(ci+1)}${ri+1}" t="${t}">${t==="inlineStr"?`<is><t xml:space="preserve">${v}</t></is>`:`<v>${v}</v>`}</c>`;
+    });
+    d+='</row>';
+  });
+  d+='</sheetData></worksheet>';
+  return d;
+}
+function crc32(buf){
+  let c; const table = crc32.table || (crc32.table = (function(){
+    const t=[]; for(let n=0;n<256;n++){ c=n; for(let k=0;k<8;k++) c=c&1?(0xEDB88320^(c>>>1)):(c>>>1); t[n]=c>>>0; } return t;
+  })());
+  let crc=0xFFFFFFFF; for(let i=0;i<buf.length;i++) crc=(crc>>>8)^table[(crc^buf[i])&0xFF]; return (crc^0xFFFFFFFF)>>>0;
+}
+function encStr(s){ return new TextEncoder().encode(s); }
+function makeZip(files){
+  const enc=new TextEncoder(); const chunks=[]; const central=[]; let offset=0;
+  for(const f of files){
+    const nameBytes=enc.encode(f.name); const data=f.data; const crc=crc32(data);
+    const lh=new DataView(new ArrayBuffer(30));
+    lh.setUint32(0,0x04034b50,true); lh.setUint16(4,20,true); lh.setUint16(6,0,true); lh.setUint16(8,0,true);
+    lh.setUint16(10,0,true); lh.setUint16(12,0,true);
+    lh.setUint32(14,crc,true); lh.setUint32(18,data.length,true); lh.setUint32(22,data.length,true);
+    lh.setUint16(26,nameBytes.length,true); lh.setUint16(28,0,true);
+    chunks.push(new Uint8Array(lh.buffer), nameBytes, data);
+    const ch=new DataView(new ArrayBuffer(46));
+    ch.setUint32(0,0x02014b50,true); ch.setUint16(4,20,true); ch.setUint16(6,20,true);
+    ch.setUint16(8,0,true); ch.setUint16(10,0,true); ch.setUint16(12,0,true); ch.setUint16(14,0,true);
+    ch.setUint32(16,crc,true); ch.setUint32(20,data.length,true); ch.setUint32(24,data.length,true);
+    ch.setUint16(28,nameBytes.length,true); ch.setUint16(30,0,true); ch.setUint16(32,0,true); ch.setUint16(34,0,true); ch.setUint16(36,0,true);
+    ch.setUint32(38,0,true); ch.setUint32(42,offset,true);
+    central.push(new Uint8Array(ch.buffer), nameBytes);
+    offset += 30 + nameBytes.length + data.length;
+  }
+  const cenSize=central.reduce((s,a)=>s+a.length,0);
+  const cd=new DataView(new ArrayBuffer(22));
+  cd.setUint32(0,0x06054b50,true); cd.setUint16(4,0,true); cd.setUint16(6,0,true);
+  cd.setUint16(8,files.length,true); cd.setUint16(10,files.length,true);
+  cd.setUint32(12,cenSize,true); cd.setUint32(16,offset,true); cd.setUint16(20,0,true);
+  const all=[...chunks,...central,new Uint8Array(cd.buffer)];
+  let total=all.reduce((s,a)=>s+a.length,0); const out=new Uint8Array(total);
+  let p=0; for(const a of all){ out.set(a,p); p+=a.length; }
+  return new Blob([out],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+}
+function sanitizeSheetName(n){ return String(n).replace(/[\\/*?:\[\]]/g,"_").slice(0,31); }
+function buildXlsx(sheets){
+  const names=sheets.map(s=>sanitizeSheetName(s.name));
+  const files=[];
+  files.push({name:"[Content_Types].xml",data:encStr(
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>`+
+    `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">`+
+    `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>`+
+    `<Default Extension="xml" ContentType="application/xml"/>`+
+    `<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>`+
+    names.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")+
+    `</Types>`)});
+  files.push({name:"_rels/.rels",data:encStr(
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>`+
+    `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">`+
+    `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>`+
+    `</Relationships>`)});
+  let wb=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">`;
+  wb+=`<sheets>`;
+  names.forEach((nm,i)=>{ wb+=`<sheet name="${xmlEsc(nm)}" sheetId="${i+1}" r:id="rId${i+1}"/>`; });
+  wb+=`</sheets></workbook>`;
+  files.push({name:"xl/workbook.xml",data:encStr(wb)});
+  let rels=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">`;
+  names.forEach((_,i)=>{ rels+=`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`; });
+  rels+=`</Relationships>`;
+  files.push({name:"xl/_rels/workbook.xml.rels",data:encStr(rels)});
+  sheets.forEach((s,i)=>{ files.push({name:`xl/worksheets/sheet${i+1}.xml`,data:encStr(sheetXML(s.rows, s.freeze))}); });
+  return makeZip(files);
+}
+
+// ============ JSON 备份 ============
+function exportJson(){
+  const blob=new Blob([JSON.stringify(DATA,null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download=`板块数据工作台_${META.date_max||"data"}.json`; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+  toast("已导出 JSON 备份");
+}
+
+// ============ Excel 导出 ============
+function numOrNull(v){ if(v==null) return null; const n=Number(v); return isNaN(n)?null:n; }
+function sheetOverview(){
+  const rows=[["股票板块数据工作台 · 数据概览"]];
+  rows.push(["数据最新日期", META.date_max||"—"]);
+  rows.push(["数据最早日期", META.date_min||"—"]);
+  rows.push(["交易日总数", META.days_count||"—"]);
+  rows.push(["数据来源", META.source||"—"]);
+  rows.push([]);
+  rows.push(["日期","综合上涨","综合下跌","综合总数","一级行业上涨","一级行业下跌","概念上涨","概念下跌"]);
+  allDatesOf(BS).sort().forEach(d=>{
+    const c=BS[d]||{};
+    const comp=c["综合"]||{}, l1=c["一级行业"]||{}, con=c["概念"]||{};
+    rows.push([d, comp.up||0, comp.down||0, comp.total||0, l1.up||0, l1.down||0, con.up||0, con.down||0]);
+  });
+  return {name:"数据概览", freeze:false, rows};
+}
+function sheetStrongWeak(){
+  const rows=[["日期","口径","类型","排名","板块名称","涨跌幅%","上涨家数","下跌家数","涨停数","领涨股","领涨涨幅%","领跌股","领跌跌幅%"]];
+  allDatesOf(SW).sort().forEach(d=>{
+    const obj=SW[d]||{};
+    ["综合","一级行业","概念"].forEach(cal=>{
+      const e=obj[cal]; if(!e)return;
+      (e.strong||[]).forEach(b=>rows.push([d,cal,"强",b.rank,b.name,numOrNull(b.pct),numOrNull(b.up),numOrNull(b.down),numOrNull(b.limit_up),
+        b.leader?b.leader.name:"—",numOrNull(b.leader?b.leader.pct:null),b.laggard?b.laggard.name:"—",numOrNull(b.laggard?b.laggard.pct:null)]));
+      (e.weak||[]).forEach(b=>rows.push([d,cal,"弱",b.rank,b.name,numOrNull(b.pct),numOrNull(b.up),numOrNull(b.down),numOrNull(b.limit_up),
+        b.leader?b.leader.name:"—",numOrNull(b.leader?b.leader.pct:null),b.laggard?b.laggard.name:"—",numOrNull(b.laggard?b.laggard.pct:null)]));
+    });
+  });
+  return {name:"强弱板块", freeze:true, rows};
+}
+function sheetBand(){
+  const rows=[["日期","口径","排名","板块名称","涨跌幅%","股票数","股票列表"]];
+  allDatesOf(BAND).sort().forEach(d=>{
+    const obj=BAND[d]||{};
+    ["综合","一级行业","概念"].forEach(cal=>{
+      (obj[cal]||[]).forEach(b=>rows.push([d,cal,b.rank,b.name,numOrNull(b.pct),(b.stocks||[]).length,(b.stocks||[]).join(", ")]));
+    });
+  });
+  return {name:"2-6%区间板块", freeze:true, rows};
+}
+function sheetFund(type){
+  const rows=[["日期","排名","板块名称","涨跌幅%","流入(亿)","流出(亿)","净额(亿)","公司家数"]];
+  allDatesOf(FUND).sort().forEach(d=>{
+    (FUND[d]&&FUND[d][type]||[]).forEach(b=>rows.push([d,b.rank,b.name,numOrNull(b.pct),numOrNull(b.inflow),numOrNull(b.outflow),numOrNull(b.net),numOrNull(b.count)]));
+  });
+  return {name:type+"资金流", freeze:true, rows};
+}
+function swRow(d,cal,dir,b){
+  return [d,cal,dir,b.rank,b.name,numOrNull(b.pct),numOrNull(b.up),numOrNull(b.down),numOrNull(b.limit_up),
+    b.leader?b.leader.name:"—",numOrNull(b.leader?b.leader.pct:null),b.laggard?b.laggard.name:"—",numOrNull(b.laggard?b.laggard.pct:null)];
+}
+function bandRow(d,cal,b){
+  return [d,cal,b.rank,b.name,numOrNull(b.pct),(b.stocks||[]).length,(b.stocks||[]).join(", ")];
+}
+function fundRow(d,b){
+  return [d,b.rank,b.name,numOrNull(b.pct),numOrNull(b.inflow),numOrNull(b.outflow),numOrNull(b.net),numOrNull(b.count)];
+}
+function sheetCurrentView(){
+  const sheets=[]; const dates=scopeDates(); const cal=state.caliber;
+  if(state.module==='sw'){
+    const rows=[["日期","口径","类型","排名","板块名称","涨跌幅%","上涨家数","下跌家数","涨停数","领涨股","领涨涨幅%","领跌股","领跌跌幅%"]];
+    dates.forEach(d=>{const e=SW[d]&&SW[d][cal];if(!e)return;
+      (e.strong||[]).forEach(b=>rows.push(swRow(d,cal,"强",b)));
+      (e.weak||[]).forEach(b=>rows.push(swRow(d,cal,"弱",b)));});
+    if(rows.length>1)sheets.push({name:"强弱-"+cal,freeze:true,rows});
+  }else if(state.module==='band'){
+    const rows=[["日期","口径","排名","板块名称","涨跌幅%","股票数","股票列表"]];
+    dates.forEach(d=>{(BAND[d]&&BAND[d][cal]||[]).forEach(b=>rows.push(bandRow(d,cal,b)));});
+    if(rows.length>1)sheets.push({name:"区间-"+cal,freeze:true,rows});
+  }else if(state.module==='fund_ind'||state.module==='fund_con'){
+    const type=state.module==='fund_ind'?'行业':'概念';
+    const rows=[["日期","排名","板块名称","涨跌幅%","流入(亿)","流出(亿)","净额(亿)","公司家数"]];
+    dates.forEach(d=>{(FUND[d]&&FUND[d][type]||[]).forEach(b=>rows.push(fundRow(d,b)));});
+    if(rows.length>1)sheets.push({name:type+"资金流",freeze:true,rows});
+  }else if(state.module==='stats'){
+    sheets.push(sheetOverview());
+  }
+  return sheets;
+}
+function buildExcelFromRows(sheets){
+  const blob=buildXlsx(sheets);
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download=`板块数据工作台_${META.date_max||"data"}.xlsx`; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+  toast("已导出 Excel（"+sheets.length+" 个工作表）");
+}
+function openExcelDialog(){
+  const m=$('#modal');
+  m.innerHTML=`<div class="mhead">导出 Excel</div>
+    <div class="mmsg">选择导出范围：</div>
+    <div class="mopts">
+      <button class="tbtn big" data-r="view">📄 当前视图<span class="sub">仅导出当前所选模块 / 日期 / 口径</span></button>
+      <button class="tbtn big" data-r="all">📚 全部历史<span class="sub">概览 + 强弱 + 区间 + 行业/概念资金流（多工作表）</span></button>
+      <button class="tbtn big" data-r="fund">💰 仅资金流<span class="sub">行业 + 概念每日流入/流出/净额</span></button>
+    </div>`;
+  m.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{
+    closeModal();
+    const r=b.dataset.r; let sheets=[];
+    if(r==='view')sheets=sheetCurrentView();
+    else if(r==='all')sheets=[sheetOverview(),sheetStrongWeak(),sheetBand(),sheetFund('行业'),sheetFund('概念')];
+    else sheets=[sheetFund('行业'),sheetFund('概念')];
+    if(!sheets.length||!sheets[0].rows.length){ toast("当前视图无数据可导出"); return; }
+    buildExcelFromRows(sheets);
+  });
+  $('#modalBg').classList.add('show');
+}
+function closeModal(){ $('#modalBg').classList.remove('show'); }
+
+// ============ V1 数据迁移 ============
+function normV1Board(b){
+  return {
+    rank: b.rank||0, name: b.name||b.board_name||"?",
+    pct: numOrNull(b.board_pct),
+    up: numOrNull(b.up), down: numOrNull(b.down), limit_up: numOrNull(b.limit_up),
+    leader: (b.leader&&b.leader.name)?{name:b.leader.name,pct:numOrNull(b.leader.pct)}:null,
+    laggard: (b.laggard&&b.laggard.name)?{name:b.laggard.name,pct:numOrNull(b.laggard.pct)}:null
+  };
+}
+function dedupByName(arr){
+  const seen=new Set(); const out=[];
+  arr.forEach(b=>{ if(!b.name||seen.has(b.name))return; seen.add(b.name); out.push(b); });
+  return out;
+}
+function migrateV1ToCurrent(v1){
+  if(!v1||typeof v1!=="object") throw new Error("数据为空或非对象");
+  if(!v1.categories) throw new Error("不是可识别的 V1 JSON（缺少 categories）");
+  const date=(v1.meta&&v1.meta.data_date)?String(v1.meta.data_date).slice(0,10):null;
+  if(!date||!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("V1 数据缺少有效的 meta.data_date");
+  const merged={};
+  [["level1","一级行业"],["industry1","一级行业"],["concept","概念"]].forEach(([vk,ck])=>{
+    const c=v1.categories[vk]; if(!c)return;
+    merged[ck]=merged[ck]||{strong:[],weak:[]};
+    (c.top||[]).forEach(b=>merged[ck].strong.push(normV1Board(b)));
+    (c.bottom||[]).forEach(b=>merged[ck].weak.push(normV1Board(b)));
+  });
+  const payload={strongWeak:{},band:{},fund:{}};
+  payload.strongWeak[date]={};
+  for(const ck in merged){
+    payload.strongWeak[date][ck]={strong:dedupByName(merged[ck].strong),weak:dedupByName(merged[ck].weak)};
+  }
+  return {date,payload};
+}
+function recomputeMeta(){
+  const set=new Set();
+  Object.keys(DATA.strongWeak).forEach(d=>set.add(d));
+  Object.keys(DATA.band).forEach(d=>set.add(d));
+  Object.keys(DATA.fund).forEach(d=>set.add(d));
+  const ds=[...set].sort();
+  if(ds.length){ META.date_min=ds[0]; META.date_max=ds[ds.length-1]; META.days_count=ds.length; }
+}
+function importV1(file){
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const raw=JSON.parse(r.result);
+      const res=migrateV1ToCurrent(raw);
+      DATA.strongWeak[res.date]=Object.assign(DATA.strongWeak[res.date]||{}, res.payload.strongWeak[res.date]);
+      recomputeMeta();
+      if(state.page==='home')renderHome(); else if(state.page==='board')renderBoard();
+      exportJson();
+      toast("已迁移 V1("+res.date+") 并导出合并后 JSON；正式落盘请用 _tmp/migrate_v1.py");
+    }catch(e){ toast("导入失败："+e.message); }
+  };
+  r.readAsText(file);
+}
+
+// ---------- formatters ----------
+const fPct=v=>v==null?'—':(v>=0?'+':'')+v.toFixed(2)+'%';
+const fNum=(v,d=2)=>v==null?'—':Number(v).toLocaleString('zh-CN',{minimumFractionDigits:d,maximumFractionDigits:d});
+const sgn=v=>v==null?'flat':(v>0?'up':(v<0?'down':'flat'));
+function pc(v){const c=sgn(v);return `<span class="${c}">${fPct(v)}</span>`;}
+function nc(v){const c=sgn(v);return `<span class="${c}">${v==null?'—':(v>=0?'+':'')+fNum(v)}</span>`;}
+
+// ---------- date utils ----------
+function allDatesOf(obj){return Object.keys(obj).sort();}
+function years(){const s=new Set();for(const d of allDatesOf(SW))s.add(d.slice(0,4));for(const d of allDatesOf(BAND))s.add(d.slice(0,4));return [...s].sort();}
+function monthsOf(y){const s=new Set();for(const d of allDatesOf(SW))if(d.slice(0,4)===y)s.add(d.slice(5,7));return [...s].sort();}
+function datesOf(y,m){let a=allDatesOf(SW);if(y)a=a.filter(d=>d.slice(0,4)===y);if(m)a=a.filter(d=>d.slice(5,7)===m);return a;}
+
+// ---------- state ----------
+const DEFAULT_DATE = META.date_max;
+const state={page:'home',module:'sw',period:'month',year:DEFAULT_DATE.slice(0,4),month:DEFAULT_DATE.slice(5,7),date:'',caliber:'综合',fundType:'行业',_nday:10};
+
+// ================= particles =================
+(function(){
+  const cv=$('#particles'),ctx=cv.getContext('2d');let w,h,ps;
+  // 手机 / 触屏设备：不跑持续动画（省电省流量），仅画一帧静态点
+  const lowPower = matchMedia('(pointer:coarse)').matches || innerWidth<760;
+  function resize(){w=cv.width=innerWidth;h=cv.height=innerHeight;
+    const n=Math.min(90,Math.floor(w*h/16000));
+    ps=Array.from({length:n},()=>({x:Math.random()*w,y:Math.random()*h,
+      vx:(Math.random()-.5)*.35,vy:(Math.random()-.5)*.35,r:Math.random()*1.8+0.6,
+      c:Math.random()<.5?'22,242,230':'255,43,214'}));}
+  function draw(){ctx.clearRect(0,0,w,h);
+    for(const p of ps){ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fillStyle='rgba('+p.c+',.8)';ctx.fill();}
+    if(lowPower)return;
+    for(let i=0;i<ps.length;i++)for(let j=i+1;j<ps.length;j++){
+      const a=ps[i],b=ps[j],dx=a.x-b.x,dy=a.y-b.y,dist=dx*dx+dy*dy;
+      if(dist<13000){const o=(1-dist/13000)*.25;ctx.strokeStyle='rgba('+a.c+','+o+')';
+        ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}}}
+  function step(){for(const p of ps){p.x+=p.vx;p.y+=p.vy;if(p.x<0||p.x>w)p.vx*=-1;if(p.y<0||p.y>h)p.vy*=-1;}draw();
+    requestAnimationFrame(step);}
+  addEventListener('resize',resize);resize();draw();
+  if(!lowPower)requestAnimationFrame(step);
+})();
+
+// ================= nav =================
+function setPage(p){
+  state.page=p;
+  $$('.navbtn').forEach(b=>b.classList.toggle('active',b.dataset.page===p));
+  $$('#bottomtab button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));
+  $('#page-home').style.display=p==='home'?'block':'none';
+  $('#page-board').style.display=p==='board'?'block':'none';
+  $('#page-history').style.display=p==='history'?'block':'none';
+  const titles={home:'<span class="neon">●</span> 首页',board:'<span class="neon">●</span> 数据看板',history:'<span class="neon">●</span> 历史记录'};
+  $('#topTitle').innerHTML=titles[p];
+  closeSidebar();
+  if(p==='home')renderHome();else if(p==='board')renderBoard();else renderHistory();
+}
+$$('.navbtn').forEach(b=>b.onclick=()=>setPage(b.dataset.page));
+$$('#bottomtab button').forEach(b=>b.onclick=()=>setPage(b.dataset.page));
+$('#menuToggle').onclick=()=>{$('#sidebar').classList.toggle('open')};
+// 数据工具：JSON 备份 / Excel 导出 / V1 导入
+$('#btnJson').onclick=()=>exportJson();
+$('#btnExcel').onclick=()=>openExcelDialog();
+$('#btnV1').onclick=()=>$('#fileV1').click();
+$('#fileV1').addEventListener('change',e=>{ if(e.target.files[0]) importV1(e.target.files[0]); e.target.value=""; });
+$('#modalBg').addEventListener('click',e=>{ if(e.target.id==='modalBg') closeModal(); });
+function closeSidebar(){$('#sidebar').classList.remove('open');}
+// mobile sidebar as overlay
+const sm=document.createElement('style');
+sm.textContent=`@media(max-width:860px){.sidebar{position:fixed;left:0;top:0;bottom:0;z-index:8;transform:translateX(-105%);transition:.25s}.sidebar.open{transform:none;box-shadow:0 0 60px #000}#page-home,#page-board,#page-history{padding-bottom:84px}.bottomtab{display:flex}.menu-toggle{display:block}.top-title{font-size:16px}}`;
+document.head.appendChild(sm);
+
+// ================= HOME =================
+function renderHome(){
+  const root=$('#page-home');root.innerHTML='';
+  const latest=DEFAULT_DATE;
+  const swLatest=SW[latest]||{};
+  const cal=state.caliber;
+  const sEntry=(swLatest[cal]&&swLatest[cal].strong[0])||{};
+  const wEntry=(swLatest[cal]&&swLatest[cal].weak[0])||{};
+  const fInd=(FUND[latest]&&FUND[latest]['行业'])||[];
+  const fCon=(FUND[latest]&&FUND[latest]['概念'])||[];
+  const topInd=fInd.slice().sort((a,b)=>(b.net||0)-(a.net||0))[0]||{};
+  const topCon=fCon.slice().sort((a,b)=>(b.net||0)-(a.net||0))[0]||{};
+  const bandList=((BAND[latest]&&BAND[latest][cal])||[]).filter(b=>b.pct>0);
+  let bandCount=0;bandList.forEach(b=>bandCount+=b.stocks.length);
+  let upN=0,downN=0;(swLatest[cal]?swLatest[cal].strong:[]).forEach(b=>upN++);(swLatest[cal]?swLatest[cal].weak:[]).forEach(b=>downN++);
+  const bsLatest=(BS&&BS[latest])||{};
+  const comp=bsLatest['综合']||{};
+  const calStat=bsLatest[cal]||{};
+
+  root.appendChild(el('div','anim','<h2 class="sec">概览 · OVERVIEW</h2>'));
+  const head=el('div','card anim d1');
+  head.innerHTML=`<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;align-items:flex-end">
+    <div><div class="muted tiny">数据最新日期</div><div style="font-size:26px;font-weight:800;color:#fff">${latest}</div>
+      <div class="tiny muted">口径：${cal} ｜ 共 ${META.days_count} 个交易日 ｜ 区间 ${META.date_min} ~ ${META.date_max}</div></div>
+    <div style="text-align:right"><div class="muted tiny">综合板块整体涨跌（当日）</div>
+      <div><span class="up" style="font-size:20px;font-weight:800">↑${comp.up||0}</span> <span class="muted">上涨</span> / <span class="down" style="font-size:20px;font-weight:800">↓${comp.down||0}</span> <span class="muted">下跌</span> <span class="tiny muted">(共 ${(comp.total||0)} 板块)</span></div></div>
+  </div>`;
+  root.appendChild(head);
+
+  // entry cards
+  const cards=[
+    {t:'强弱板块',ic:'⚡',c:'var(--cyan)',d:'每日最强、最弱各 10 个板块（综合/一级行业/概念）',m:'sw'},
+    {t:'2%–6% 股票',ic:'🎯',c:'var(--magenta)',d:'强势板块涨幅 2%–6% 区间个股明细',m:'band'},
+    {t:'行业资金流向',ic:'🏭',c:'var(--green)',d:'行业板块每日流入/流出/净额排行',m:'fund_ind'},
+    {t:'概念资金流向',ic:'💡',c:'var(--violet)',d:'概念板块资金净流入/流出与净额',m:'fund_con'},
+    {t:'统计排行',ic:'🏆',c:'var(--red)',d:'板块与股票在月/年内的出现次数与持续强度',m:'stats'},
+  ];
+  const g=el('div','grid cols-3 anim d2');g.style.marginTop='16px';
+  cards.forEach(cd=>{
+    const c=el('div','card entry');
+    c.innerHTML=`<div class="et" style="color:${cd.c}"><span class="ic">${cd.ic}</span>${cd.t}</div>
+      <div class="ed">${cd.d}</div>
+      <div class="acts">
+        <button class="mini" data-m="${cd.m}" data-p="year">按年查看</button>
+        <button class="mini on" data-m="${cd.m}" data-p="month">按月查看</button>
+      </div>`;
+    c.onclick=e=>{if(e.target.dataset.m)return;gotoModule(cd.m);};
+    $$('.mini',c).forEach(b=>b.onclick=ev=>{ev.stopPropagation();gotoModule(b.dataset.m,b.dataset.p);});
+    g.appendChild(c);
+  });
+  root.appendChild(g);
+
+  // today summary
+  const s=el('div','card anim d3');s.style.marginTop='18px';
+  s.innerHTML=`<h2 class="sec" style="margin-top:0">最近交易日摘要 · ${latest}</h2>
+    <div class="grid cols-3" style="gap:14px">
+      <div class="row" style="flex-direction:column;align-items:flex-start;gap:4px"><span class="muted tiny">最强板块</span>
+        <b style="color:var(--up)">${sEntry.name||'—'} ${sEntry.pct!=null?pc(sEntry.pct):''}</b>
+        <span class="tiny muted">领涨 ${sEntry.leader?sEntry.leader.name:'—'} ${sEntry.leader?pc(sEntry.leader.pct):''}</span></div>
+      <div class="row" style="flex-direction:column;align-items:flex-start;gap:4px"><span class="muted tiny">最弱板块</span>
+        <b style="color:var(--down)">${wEntry.name||'—'} ${wEntry.pct!=null?pc(wEntry.pct):''}</b>
+        <span class="tiny muted">领跌 ${wEntry.laggard?wEntry.laggard.name:'—'} ${wEntry.laggard?pc(wEntry.laggard.pct):''}</span></div>
+      <div class="row" style="flex-direction:column;align-items:flex-start;gap:4px"><span class="muted tiny">行业资金净流入第一</span>
+        <b style="color:var(--up)">${topInd.name||'—'} ${topInd.net!=null?nc(topInd.net)+' 亿':''}</b></div>
+      <div class="row" style="flex-direction:column;align-items:flex-start;gap:4px"><span class="muted tiny">概念资金净流入第一</span>
+        <b style="color:var(--up)">${topCon.name||'—'} ${topCon.net!=null?nc(topCon.net)+' 亿':''}</b></div>
+      <div class="row" style="flex-direction:column;align-items:flex-start;gap:4px"><span class="muted tiny">2%–6% 强势股数</span>
+        <b style="color:#fff;font-size:22px">${bandCount}</b><span class="tiny muted">只（${cal}口径）</span></div>
+      <div class="row" style="flex-direction:column;align-items:flex-start;gap:4px"><span class="muted tiny">${cal} 上涨 / 下跌板块</span>
+        <b><span class="up">${calStat.up||upN}</span> / <span class="down">${calStat.down||downN}</span></b><span class="tiny muted">整体（非 Top10）</span></div>
+    </div>`;
+  root.appendChild(s);
+
+  // caliber note
+  const note=el('div','anim d4 tiny muted');note.style.marginTop='14px';
+  note.innerHTML='说明：数据源为同花顺——fuyao 行情接口（强弱板块、2%–6% 区间个股）与数据中心资金流爬虫（行业/概念每日流入/流出/净额）。'
+    +'综合口径 = 一级行业(881) + 地域(882) + 概念(886)。强弱/区间板块覆盖 2026-03-19 至今；资金流向覆盖 6–8 月。';
+  root.appendChild(note);
+}
+function gotoModule(m,period){
+  state.module = m==='fund_ind'?'fund_ind':m==='fund_con'?'fund_con':m;
+  if(period)state.period=period;
+  setPage('board');
+}
+
+// ================= BOARD =================
+const MODULES=[
+  {id:'sw',label:'⚡ 强弱板块'},
+  {id:'band',label:'🎯 2%–6% 股票'},
+  {id:'fund_ind',label:'🏭 行业资金流向'},
+  {id:'fund_con',label:'💡 概念资金流向'},
+  {id:'stats',label:'🏆 统计排行'},
+];
+function renderBoard(){
+  const root=$('#page-board');root.innerHTML='';
+  // module tabs
+  const tabs=el('div','modtabs anim');
+  MODULES.forEach(m=>{const t=el('div','modtab'+(state.module===m.id?' on':''),m.label);
+    t.onclick=()=>{state.module=m.id;renderBoard();};tabs.appendChild(t);});
+  root.appendChild(tabs);
+  // filter bar
+  root.appendChild(buildFilter());
+  // content
+  const c=el('div','anim d1');root.appendChild(c);
+  try{
+    if(state.module==='sw')renderSW(c);
+    else if(state.module==='band')renderBand(c);
+    else if(state.module==='fund_ind'||state.module==='fund_con')renderFund(c);
+    else if(state.module==='stats')renderStats(c);
+  }catch(err){c.innerHTML='<div class="warnbar">渲染出错：'+err.message+'</div>';console.error(err);}
+}
+
+function buildFilter(){
+  const fb=el('div','filterbar');
+  // period
+  const pf=el('div','field');pf.innerHTML='<label>查看周期</label>';
+  const seg=el('div','seg');
+  seg.innerHTML=`<button class="${state.period==='month'?'on':''}" data-p="month">月度</button><button class="${state.period==='year'?'on':''}" data-p="year">年度</button>`;
+  $$('button',seg).forEach(b=>b.onclick=()=>{state.period=b.dataset.p;renderBoard();});
+  pf.appendChild(seg);fb.appendChild(pf);
+  // year
+  const yf=el('div','field');yf.innerHTML='<label>年份</label>';
+  const ys=el('select');years().forEach(y=>ys.innerHTML+=`<option ${y===state.year?'selected':''}>${y}</option>`);
+  ys.onchange=()=>{state.year=ys.value;if(!monthsOf(state.year).includes(state.month))state.month=monthsOf(state.year)[0]||'';state.date='';renderBoard();};
+  yf.appendChild(ys);fb.appendChild(yf);
+  // month
+  if(state.period==='month'){
+    const mf=el('div','field');mf.innerHTML='<label>月份</label>';
+    const ms=el('select');ms.innerHTML='<option value="">全部</option>'+monthsOf(state.year).map(m=>`<option ${m===state.month?'selected':''}>${m}</option>`).join('');
+    ms.onchange=()=>{state.month=ms.value;state.date='';renderBoard();};
+    mf.appendChild(ms);fb.appendChild(mf);
+  }
+  // date
+  const df=el('div','field');df.innerHTML=`<label>${state.period==='month'?'交易日':'交易日(可选)'}</label>`;
+  const ds=el('select');
+  let dlist;
+  if(state.module==='fund_ind'||state.module==='fund_con'){
+    dlist=allDatesOf(FUND).filter(d=>d.slice(0,4)===state.year);
+    if(state.period==='month'&&state.month)dlist=dlist.filter(d=>d.slice(5,7)===state.month);
+  }else if(state.module==='band'){
+    dlist=allDatesOf(BAND).filter(d=>d.slice(0,4)===state.year);
+    if(state.period==='month'&&state.month)dlist=dlist.filter(d=>d.slice(5,7)===state.month);
+  }else{
+    dlist=datesOf(state.year,state.period==='month'?state.month:'');
+  }
+  ds.innerHTML='<option value="">'+(state.period==='month'?'选择交易日':'（年度汇总）')+'</option>'+
+    [...dlist].sort((a,b)=>b.localeCompare(a)).map(d=>`<option ${d===state.date?'selected':''}>${d}</option>`).join('');
+  ds.onchange=()=>{state.date=ds.value;renderBoard();};
+  df.appendChild(ds);fb.appendChild(df);
+  // caliber (sw/band only)
+  if(state.module==='sw'||state.module==='band'){
+    const cf=el('div','field');cf.innerHTML='<label>板块口径</label>';
+    const cs=el('select');META.calibers[state.module==='sw'?'strongWeak':'band'].forEach(c=>{
+      cs.innerHTML+=`<option ${c===state.caliber?'selected':''}>${c}</option>`;});
+    cs.onchange=()=>{state.caliber=cs.value;renderBoard();};
+    cf.appendChild(cs);fb.appendChild(cf);
+  }
+  // search (concept)
+  if(state.module==='fund_con'){
+    const sf=el('div','field');sf.innerHTML='<label>概念搜索</label>';
+    const inp=el('input');inp.type='text';inp.placeholder='输入概念名…';inp.value=state._search||'';
+    bindSearchInput(inp,v=>{state._search=v;renderBoard();});
+    sf.appendChild(inp);fb.appendChild(sf);
+  }
+  // refresh
+  const rf=el('button','btn','⟳ 刷新');rf.onclick=()=>renderBoard();fb.appendChild(rf);
+  return fb;
+}
+
+// ----- scope helper -----
+function scopeDates(){
+  let base;
+  if(state.module==='sw')base=allDatesOf(SW);
+  else if(state.module==='band')base=allDatesOf(BAND);
+  else if(state.module==='fund_ind'||state.module==='fund_con')base=allDatesOf(FUND);
+  else base=allDatesOf(SW);
+  let a=base.filter(d=>d.slice(0,4)===state.year);
+  if(state.period==='month'&&state.month)a=a.filter(d=>d.slice(5,7)===state.month);
+  if(state.date)a=a.filter(d=>d===state.date);
+  if(state.date && a.length===0){ // 该日期超出本模块数据范围（如资金流仅 6-8 月），回退到月份/年度范围
+    a=base.filter(d=>d.slice(0,4)===state.year);
+    if(state.period==='month'&&state.month)a=a.filter(d=>d.slice(5,7)===state.month);
+  }
+  return a.sort();
+}
+
+// ================= 强弱板块 =================
+function renderSW(root){
+  const cal=state.caliber;
+  const dates=scopeDates();
+  if(!dates.length){root.innerHTML='<div class="empty">该筛选条件下暂无数据（资金流向仅含 6-8 月；强弱板块覆盖全年）。</div>';return;}
+  // single day
+  if(state.date){
+    const day=state.date,obj=SW[day];
+    if(!obj||!obj[cal]){root.innerHTML='<div class="empty">该日期无「'+cal+'」数据。</div>';return;}
+    const e=obj[cal];
+    root.appendChild(dayHeader(day,e));
+    const grid=el('div','sw-grid');
+    grid.appendChild(boardTable(e.strong,'sw-strong','▲ 强势板块 Top 10',cal,'strong'));
+    grid.appendChild(boardTable(e.weak,'sw-weak','▼ 弱势板块 Top 10',cal,'weak'));
+    root.appendChild(grid);
+    return;
+  }
+  // month / year list
+  root.appendChild(el('div','card',`<div class="muted">共 <b style="color:var(--cyan)">${dates.length}</b> 个交易日的 ${cal} 口径强弱板块（点击展开）。</div>`));
+  const list=el('div');list.style.marginTop='12px';
+  dates.forEach(d=>{
+    const e=SW[d]&&SW[d][cal];if(!e)return;
+    const col=el('div','coll');
+    const top=e.strong[0]||{},bot=e.weak[0]||{};
+    col.innerHTML=`<div class="ch"><span class="ar">▶</span><span class="date" style="font-size:15px">${d}</span>
+      <span class="pill red">强 ${top.name||''} ${top.pct!=null?fPct(top.pct):''}</span>
+      <span class="pill green">弱 ${bot.name||''} ${bot.pct!=null?fPct(bot.pct):''}</span></div><div class="cb"></div>`;
+    col.querySelector('.ch').onclick=()=>{col.classList.toggle('open');
+      if(col.classList.contains('open')&&!col._done){col._done=1;
+        const cb=col.querySelector('.cb');const g=el('div','sw-grid');
+        g.appendChild(boardTable(e.strong,'sw-strong','▲ 强势 Top 10',cal,'strong'));
+        g.appendChild(boardTable(e.weak,'sw-weak','▼ 弱势 Top 10',cal,'weak'));
+        cb.appendChild(g);}};
+    list.appendChild(col);
+  });
+  root.appendChild(list);
+}
+function dayHeader(day,info){
+  const h=el('div','dayhead');
+  const lab=(typeof info==='string')?info:state.caliber;
+  let extra='';
+  if(info&&typeof info!=='string'&&info.strong!==undefined){
+    const s=info.strong,w=info.weak||[];
+    extra=`<span class="pill red">强 ${s.length} 板块</span><span class="pill green">弱 ${w.length} 板块</span>`;
+  }
+  h.innerHTML=`<span class="date">${day}</span><span class="pill">${lab} 口径</span>${extra}`;
+  return h;
+}
+// 当前强弱板块统计的 scope key：月度=YYYY-MM，年度=YYYY
+function swScopeKey(){
+  return (state.period==='month'&&state.month)? (state.year+'-'+state.month) : state.year;
+}
+// 取当前口径+范围下的板块上榜次数 / 领涨(跌)股次数
+function swScopeStats(kind){
+  const cal=state.caliber;
+  const root=(DATA.swStats&&DATA.swStats[cal]&&DATA.swStats[cal][swScopeKey()])||{};
+  const part=(kind==='strong'? root.strong : root.weak)||{};
+  return {sector:part.sector||{}, stock:part.stock||{}};
+}
+function boardTable(list,cls,title,cal,kind,scopeLabel){
+  const sl = scopeLabel || ((state.period==='month'&&state.month)?'当月':'当年');
+  const st = swScopeStats(kind);
+  const secTitle = `${sl}该板块进入${kind==='strong'?'强势':'弱势'}榜次数`;
+  const stockTitle = `领涨股/领跌股在${sl}${kind==='strong'?'领涨':'领跌'}次数（同日同股只计一次）`;
+  const card=el('div','card '+cls);
+  card.innerHTML=`<h2 class="sec" style="margin-top:0">${title}</h2>`;
+  const w=el('div','tbl-wrap');
+  const t=el('table');
+  // 列序：板块上榜紧跟「涨幅」；股票上榜紧跟对应「领涨%/领跌%」
+  let head = `<thead><tr><th>#</th><th class="l">板块名称</th><th>涨幅</th>`+
+    `<th title="${secTitle}">${sl}上榜</th>`+
+    `<th>上涨</th><th>下跌</th><th>涨停</th>`+
+    `<th class="l">领涨股</th><th>领涨%</th>`;
+  if(kind==='strong'){
+    head += `<th title="${stockTitle}">领涨次数</th>`+
+            `<th class="l">领跌股</th><th>领跌%</th>`;
+  }else{
+    head += `<th class="l">领跌股</th><th>领跌%</th>`+
+            `<th title="${stockTitle}">领跌次数</th>`;
+  }
+  head += `</tr></thead>`;
+  t.innerHTML = head;
+  const tb=el('tbody');
+  list.forEach(b=>{
+    const secCnt = (st.sector[b.name]||0);
+    let stockCnt=0;
+    if(kind==='strong'){ stockCnt = (b.leader&&b.leader.name)? (st.stock[b.leader.name]||0):0; }
+    else { stockCnt = (b.laggard&&b.laggard.name)? (st.stock[b.laggard.name]||0):0; }
+    let row = `<td><span class="rank ${b.rank===1?'top':''}">${b.rank}</span></td>`+
+      `<td class="l"><span class="bname" data-board="${b.name}">${b.name}</span></td>`+
+      `<td>${pc(b.pct)}</td>`+
+      `<td><span class="cnt">${secCnt}</span><span class="tiny muted"> 次</span></td>`+
+      `<td>${b.up??'—'}</td><td>${b.down??'—'}</td><td>${b.limit_up??'—'}</td>`+
+      `<td class="l">${b.leader?b.leader.name:'—'}</td><td>${b.leader?pc(b.leader.pct):'—'}</td>`;
+    if(kind==='strong'){
+      row += `<td><span class="cnt">${stockCnt}</span><span class="tiny muted"> 次</span></td>`+
+             `<td class="l">${b.laggard?b.laggard.name:'—'}</td><td>${b.laggard?pc(b.laggard.pct):'—'}</td>`;
+    }else{
+      row += `<td class="l">${b.laggard?b.laggard.name:'—'}</td><td>${b.laggard?pc(b.laggard.pct):'—'}</td>`+
+             `<td><span class="cnt">${stockCnt}</span><span class="tiny muted"> 次</span></td>`;
+    }
+    const tr=el('tr'); tr.innerHTML=row; tb.appendChild(tr);
+  });
+  t.appendChild(tb);w.appendChild(t);card.appendChild(w);
+  return card;
+}
+
+// ================= 2%–6% 股票 =================
+function renderBand(root){
+  const cal=state.caliber;const dates=scopeDates();
+  if(!dates.length){root.innerHTML='<div class="empty">该筛选条件下暂无 2%–6% 数据。</div>';return;}
+  if(state.date){
+    const e=((BAND[state.date]&&BAND[state.date][cal])||[]).filter(b=>b.pct>0);
+    root.appendChild(dayHeader(state.date,'2%–6% 强势板块区间股票'));
+    if(!e.length){root.innerHTML+='<div class="empty">该日无 2%–6% 强势板块区间数据。</div>';return;}
+    e.forEach(brd=>{
+      const card=el('div','card');card.style.marginBottom='14px';
+      const head=`${brd.rank}. <b style="color:var(--cyan)">${brd.name}</b> ${pc(brd.pct)} <span class="tiny muted">（${brd.stocks.length} 只）</span>`;
+      let stocks=brd.stocks.slice(0,10).map(s=>`<span class="chip">${s}</span>`).join('');
+      if(brd.stocks.length>10)stocks+=`<span class="chip" style="cursor:pointer" data-exp="${brd.rank}">展开全部 ${brd.stocks.length} 只 ▾</span>`;
+      card.innerHTML=`<div style="font-size:14px;font-weight:700">${head}</div><div style="margin-top:8px">${stocks}</div>`;
+      if(brd.stocks.length>10){
+        const more=$$('[data-exp]',card)[0];
+        more.onclick=()=>{more.outerHTML=brd.stocks.slice(10).map(s=>`<span class="chip">${s}</span>`).join('');};
+      }
+      root.appendChild(card);
+    });
+    return;
+  }
+  root.appendChild(el('div','card',`<div class="muted">共 <b style="color:var(--cyan)">${dates.length}</b> 个交易日 · ${cal} 口径 2%–6% 强势板块区间股票（点击展开当日）。</div>`));
+  const list=el('div');list.style.marginTop='12px';
+  dates.forEach(d=>{
+    const e=((BAND[d]&&BAND[d][cal])||[]).filter(b=>b.pct>0);if(!e.length)return;
+    let cnt=0;e.forEach(b=>cnt+=b.stocks.length);
+    const col=el('div','coll');
+    col.innerHTML=`<div class="ch"><span class="ar">▶</span><span class="date" style="font-size:15px">${d}</span>
+      <span class="pill">${e.length} 个强势板块</span><span class="pill">${cnt} 只区间股</span></div><div class="cb"></div>`;
+    col.querySelector('.ch').onclick=()=>{col.classList.toggle('open');
+      if(col.classList.contains('open')&&!col._done){col._done=1;const cb=col.querySelector('.cb');
+        e.forEach(brd=>{const c=el('div','card');c.style.marginBottom='10px';
+          const sh=brd.stocks.map(s=>`<span class="chip">${s}</span>`).join('');
+          c.innerHTML=`<div style="font-size:13.5px;font-weight:700">${brd.rank}. <b style="color:var(--cyan)">${brd.name}</b> ${pc(brd.pct)} <span class="tiny muted">（${brd.stocks.length} 只）</span></div>
+            <div style="margin-top:6px">${sh}</div>`;
+          cb.appendChild(c);});}};
+    list.appendChild(col);
+  });
+  root.appendChild(list);
+}
+
+// ================= 资金流向 =================
+let fundSort={key:'net',dir:-1};
+function renderFund(root){
+  const type=state.module==='fund_ind'?'行业':'概念';
+  // 板块搜索：查其每日资金净额（Mod 3）
+  const q=(state._boardSearch||'').trim();
+  const sb=el('div','card');sb.style.marginBottom='14px';
+  sb.innerHTML=`<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <input id="bsrch" type="text" placeholder="搜索${type}板块，查看其每日资金净额（如：${type==='行业'?'银行 / 光伏设备':'白酒 / 人工智能'}）" value="${q}" style="flex:1;min-width:260px">
+    <span class="tiny muted">仅在「${type}资金流向」范围内检索</span>
+    ${q?'<button class="mini" id="bsclr">清除</button>':''}
+  </div>`;
+  root.appendChild(sb);
+  const inp=sb.querySelector('#bsrch');
+  bindSearchInput(inp,v=>{state._boardSearch=v;renderBoard();});
+  const clr=sb.querySelector('#bsclr');if(clr)clr.onclick=()=>{state._boardSearch='';renderBoard();};
+
+  if(q){
+    const rows=[];
+    for(const d of allDatesOf(FUND)){
+      const ty=type; // 仅检索当前资金流分页对应的口径（行业 / 概念），避免名称相近的跨口径板块混在一起
+      const arr=(FUND[d]&&FUND[d][ty])||[];
+      for(const r of arr){ if(r.name.includes(q)) rows.push({date:d,type:ty,name:r.name,inflow:r.inflow,outflow:r.outflow,net:r.net}); }
+    }
+    rows.sort((a,b)=>a.date<b.date?1:-1); // 最新日期在前
+    const card=el('div','card');
+    if(!rows.length){
+      card.innerHTML=`<div class="empty">未找到含「${q}」的${type}板块资金流向记录（${type}全周期）。</div>`;
+    }else{
+      const names=[...new Set(rows.map(r=>r.name))];
+      card.innerHTML=`<h2 class="sec" style="margin-top:0">板块每日资金净额（${type}） · 匹配 ${names.length} 个板块 / ${rows.length} 条记录</h2>
+        <div class="tbl-wrap"><table><thead><tr>
+          <th>日期</th><th class="l">板块名称</th><th>流入(亿)</th><th>流出(亿)</th><th>净额(亿)</th></tr></thead><tbody>
+        ${rows.map(r=>`<tr><td>${r.date}</td><td class="l"><span class="bname">${r.name}</span></td>
+          <td class="tnum">${r.inflow==null?'—':fNum(r.inflow)}</td>
+          <td class="tnum">${r.outflow==null?'—':fNum(r.outflow)}</td>
+          <td class="tnum">${r.net==null?'—':nc(r.net)}</td></tr>`).join('')}
+        </tbody></table></div>
+        <div class="tiny muted" style="margin-top:8px">提示：净额按日期从新到旧排列；点击上方「按月/按年查看」可缩小检索范围。</div>`;
+    }
+    root.appendChild(card);
+    return;
+  }
+
+  const dates=scopeDates();
+  if(!dates.length){root.appendChild(el('div','empty','该筛选条件下暂无资金流向数据（仅 6-8 月）。'));return;}
+  // aggregate toggle for month/year
+  if(state.date){
+    const e=(FUND[state.date]&&FUND[state.date][type])||[];
+    root.appendChild(dayHeader(state.date,type+'资金流向'));
+    root.appendChild(fundTable(e,type));
+    return;
+  }
+  // 近 N 日资金流入/流出 Top 10
+  renderFundNDay(root, type);
+  // month/year summary
+  const card=el('div','card');
+  let totalIn=0,totalOut=0,totalNet=0,inDays=0,outDays=0;
+  // 按「当日整体板块合计净额」来统计净流入/流出天数（而非把每个板块当一天来数）
+  dates.forEach(d=>{const e=(FUND[d]&&FUND[d][type])||[];let dayNet=0;e.forEach(x=>{totalIn+=(x.inflow||0);totalOut+=(x.outflow||0);totalNet+=(x.net||0);dayNet+=(x.net||0);});if(dayNet>0)inDays++;else if(dayNet<0)outDays++;});
+  card.innerHTML=`<h2 class="sec" style="margin-top:0">${type}资金流向 · ${state.period==='month'?(state.year+'-'+state.month):state.year} 汇总</h2>
+    <div class="grid cols-4">
+      <div class="kpi"><span class="l">累计流入</span><span class="v up">${fNum(totalIn)} 亿</span></div>
+      <div class="kpi"><span class="l">累计流出</span><span class="v down">${fNum(totalOut)} 亿</span></div>
+      <div class="kpi"><span class="l">累计净额</span><span class="v ${totalNet>=0?'up':'down'}">${fNum(totalNet)} 亿</span></div>
+      <div class="kpi"><span class="l">净流入/流出天数</span><span class="v"><span class="up">${inDays}</span> / <span class="down">${outDays}</span></span></div>
+    </div>`;
+  root.appendChild(card);
+  // per-day collapsibles (reverse)
+  const list=el('div');list.style.marginTop='14px';
+  dates.forEach(d=>{
+    const e=(FUND[d]&&FUND[d][type])||[];if(!e.length)return;
+    const net=e.reduce((a,x)=>a+(x.net||0),0);
+    const col=el('div','coll');
+    col.innerHTML=`<div class="ch"><span class="ar">▶</span><span class="date" style="font-size:15px">${d}</span>
+      <span class="pill ${net>=0?'red':'green'}">净额 ${fNum(net)} 亿</span><span class="pill">${e.length} 板块</span></div><div class="cb"></div>`;
+    col.querySelector('.ch').onclick=()=>{col.classList.toggle('open');
+      if(col.classList.contains('open')&&!col._done){col._done=1;col.querySelector('.cb').appendChild(fundTable(e,type));}};
+    list.appendChild(col);
+  });
+  root.appendChild(list);
+}
+// 近 N 日资金流入/流出 Top 10（N 由下拉选择 3/5/7/10/20）
+function renderFundNDay(root, type){
+  const NDAYS=[3,5,7,10,20];
+  const n=state._nday&&NDAYS.includes(state._nday)?state._nday:10;
+  // 取全量资金流日期里最近的 N 个交易日
+  const all=allDatesOf(FUND).filter(d=>(FUND[d]&&FUND[d][type]&&FUND[d][type].length)).sort();
+  const win=all.slice(Math.max(0,all.length-n));
+  if(win.length===0){root.appendChild(el('div','empty','暂无资金流向数据。'));return;}
+  // 逐板块累计近 N 日 流入/流出/净额
+  const agg={}; // name -> {net,inflow,outflow,days}
+  win.forEach(d=>{
+    (FUND[d][type]||[]).forEach(b=>{
+      const o=agg[b.name]||(agg[b.name]={net:0,inflow:0,outflow:0});
+      o.net+=(b.net||0); o.inflow+=(b.inflow||0); o.outflow+=(b.outflow||0);
+    });
+  });
+  const arr=Object.keys(agg).map(name=>({name,net:agg[name].net,inflow:agg[name].inflow,outflow:agg[name].outflow}));
+  const inflow=arr.slice().filter(x=>x.net>0).sort((a,b)=>b.net-a.net).slice(0,10);
+  const outflow=arr.slice().filter(x=>x.net<0).sort((a,b)=>a.net-b.net).slice(0,10);
+  const opt=NDAYS.map(v=>`<option value="${v}" ${v===n?'selected':''}>近 ${v} 日</option>`).join('');
+  const card=el('div','card');card.style.marginBottom='14px';
+  card.innerHTML=`<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <h2 class="sec" style="margin:0">${type}资金流向 · 近 ${n} 日净流入/流出 Top 10</h2>
+      <select id="ndaysel" class="tbtn" style="padding:4px 10px">${opt}</select>
+      <span class="tiny muted">覆盖 ${win[0]} ~ ${win[win.length-1]}（${win.length} 个交易日）</span>
+    </div>
+    <div class="grid cols-2" style="gap:14px">
+      <div><div class="tiny up strong" style="margin-bottom:6px">▲ 近 ${n} 日净流入 Top 10</div>
+        <div class="tbl-wrap"><table><thead><tr><th>#</th><th class="l">板块</th><th>净流入(亿)</th></tr></thead><tbody>
+        ${inflow.length?inflow.map((x,i)=>`<tr><td>${i+1}</td><td class="l"><span class="bname">${x.name}</span></td><td class="tnum up">${fNum(x.net)}</td></tr>`).join(''):'<tr><td colspan="3" class="muted">近 '+n+' 日无净流入板块</td></tr>'}
+        </tbody></table></div></div>
+      <div><div class="tiny down strong" style="margin-bottom:6px">▼ 近 ${n} 日净流出 Top 10</div>
+        <div class="tbl-wrap"><table><thead><tr><th>#</th><th class="l">板块</th><th>净流出(亿)</th></tr></thead><tbody>
+        ${outflow.length?outflow.map((x,i)=>`<tr><td>${i+1}</td><td class="l"><span class="bname">${x.name}</span></td><td class="tnum down">${fNum(x.net)}</td></tr>`).join(''):'<tr><td colspan="3" class="muted">近 '+n+' 日无净流出板块</td></tr>'}
+        </tbody></table></div></div>
+    </div>`;
+  root.appendChild(card);
+  const sel=card.querySelector('#ndaysel');
+  if(sel)sel.onchange=()=>{state._nday=parseInt(sel.value,10);renderBoard();};
+}
+
+function fundTable(data,type){
+  let rows=data.slice();
+  // search (concept)
+  if(state.module==='fund_con'&&state._search){
+    const q=state._search.trim();if(q)rows=rows.filter(r=>r.name.includes(q));
+  }
+  // net filter
+  if(state._netfilter&&state._netfilter!=='all'){
+    rows=rows.filter(r=>(state._netfilter==='in'?(r.net||0)>0:(r.net||0)<0));
+  }
+  // topN
+  if(state._topn&&state._topn!=='all')rows=rows.slice(0,parseInt(state._topn));
+  // sort
+  rows.sort((a,b)=>((a[fundSort.key]||0)-(b[fundSort.key]||0))*fundSort.dir);
+  // rank
+  const sorted=rows;
+  const w=el('div','tbl-wrap');
+  const t=el('table');
+  const cols=[['rank','序号','l'],['name','板块名称','l'],['inflow','流入(亿)',''],['outflow','流出(亿)',''],['net','净额(亿)','']];
+  t.innerHTML='<thead><tr>'+cols.map(c=>{
+    const sortable=(c[0]==='inflow'||c[0]==='outflow'||c[0]==='net');
+    const ind=sortable?(fundSort.key===c[0]?(fundSort.dir<0?' ▼':' ▲'):' ⇅'):'';
+    return `<th class="${c[2]}${sortable?' sortable':''}" data-k="${c[0]}"${sortable?' style="cursor:pointer"':''}>${c[1]}${ind}</th>`;
+  }).join('')+'</tr></thead>';
+  const tb=el('tbody');
+  sorted.forEach((r,i)=>{
+    const tr=el('tr');
+    tr.innerHTML=`<td><span class="rank ${i<3?'top':''}">${i+1}</span></td>
+      <td class="l"><span class="bname">${r.name}</span></td>
+      <td class="tnum">${r.inflow==null?'—':fNum(r.inflow)}</td>
+      <td class="tnum">${r.outflow==null?'—':fNum(r.outflow)}</td>
+      <td class="tnum">${r.net==null?'—':nc(r.net)}</td>`;
+    tb.appendChild(tr);
+  });
+  t.appendChild(tb);w.appendChild(t);
+  // header sort
+  $$('th',t).forEach(th=>th.onclick=()=>{const k=th.dataset.k;if(k==='rank'||k==='name')return;
+    if(fundSort.key===k)fundSort.dir*=-1;else{fundSort.key=k;fundSort.dir=-1;}renderBoard();});
+  // controls for concept
+  const box=el('div');
+  if(state.module==='fund_con'){
+    const ctl=el('div','');ctl.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px';
+    ctl.innerHTML=`<span class="seg" id="nf"></span><span class="seg" id="tn"></span><span class="tiny muted">共 ${data.length} 板块，当前显示 ${rows.length}</span>`;
+    box.appendChild(ctl);
+    const nf=ctl.querySelector('#nf');nf.innerHTML=`<button class="${!state._netfilter||state._netfilter==='all'?'on':''}" data-v="all">全部</button><button class="${state._netfilter==='in'?'on':''}" data-v="in">净流入</button><button class="${state._netfilter==='out'?'on':''}" data-v="out">净流出</button>`;
+    $$('button',nf).forEach(b=>b.onclick=()=>{state._netfilter=b.dataset.v;renderBoard();});
+    const tn=ctl.querySelector('#tn');tn.innerHTML=`<button class="${!state._topn||state._topn==='10'?'on':''}" data-v="10">Top10</button><button class="${state._topn==='20'?'on':''}" data-v="20">Top20</button><button class="${state._topn==='all'?'on':''}" data-v="all">全部</button>`;
+    $$('button',tn).forEach(b=>b.onclick=()=>{state._topn=b.dataset.v;renderBoard();});
+  }
+  box.appendChild(w);
+  return box;
+}
+
+// ================= 统计排行 =================
+function renderStats(root){
+  const cal=state.caliber;
+  const dates=scopeDates();
+  if(!dates.length){root.appendChild(el('div','empty','该筛选条件下无数据。'));return;}
+  root.appendChild(el('div','card',`<div class="muted">统计范围：<b style="color:var(--cyan)">${state.year}${state.period==='month'&&state.month?'-'+state.month:''}</b> · ${dates.length} 个交易日 · 口径 ${cal}</div>`));
+  // board appearance
+  const boardStat={};
+  dates.forEach(d=>{const e=SW[d]&&SW[d][cal];if(!e)return;
+    e.strong.forEach(b=>{const o=boardStat[b.name]||(boardStat[b.name]={s:0,w:0,last:d,streak:0});
+      o.s++;if(o.last!==d){o.streak=0;}o.last=d;});
+    e.weak.forEach(b=>{const o=boardStat[b.name]||(boardStat[b.name]={s:0,w:0,last:d,streak:0});
+      o.w++;o.last=d;});});
+  const boardArr=Object.entries(boardStat).map(([k,v])=>({name:k,strong:v.s,weak:v.w,total:v.s+v.w,last:v.last})).sort((a,b)=>b.total-a.total).slice(0,30);
+  const c1=el('div','card');c1.style.marginTop='14px';
+  c1.innerHTML='<h2 class="sec" style="margin-top:0">板块出现次数排行 · Top 30</h2>';
+  c1.appendChild(rankTable(['板块','强榜','弱榜','合计','最近出现'],boardArr.map(r=>[r.name,r.strong,r.weak,r.total,r.last])));
+  root.appendChild(c1);
+  // stock appearance (from band)
+  const stockStat={};
+  dates.forEach(d=>{const e=BAND[d]&&BAND[d][cal];if(!e)return;
+    e.forEach(brd=>brd.stocks.forEach(s=>{const o=stockStat[s]||(stockStat[s]={c:0,boards:new Set(),last:d});o.c++;o.boards.add(brd.name);o.last=d;}));});
+  const stockArr=Object.entries(stockStat).map(([k,v])=>({name:k,count:v.c,boards:v.boards.size,last:v.last})).sort((a,b)=>b.count-a.count).slice(0,30);
+  const c2=el('div','card');c2.style.marginTop='14px';
+  c2.innerHTML='<h2 class="sec" style="margin-top:0">2%–6% 股票出现次数排行 · Top 30</h2>';
+  c2.appendChild(rankTable(['股票','出现次数','涉及板块数','最近出现'],stockArr.map(r=>[r.name,r.count,r.boards,r.last])));
+  root.appendChild(c2);
+}
+function rankTable(heads,rows){
+  const w=el('div','tbl-wrap');const t=el('table');
+  t.innerHTML='<thead><tr>'+heads.map((h,i)=>`<th class="${i===0?'l':''}">${h}</th>`).join('')+'</tr></thead>';
+  const tb=el('tbody');
+  rows.forEach(r=>{const tr=el('tr');tr.innerHTML=r.map((v,i)=>`<td class="${i===0?'l':''}">${v}</td>`).join('');tb.appendChild(tr);});
+  t.appendChild(tb);w.appendChild(t);return w;
+}
+
+// ================= 历史记录 =================
+function renderHistory(){
+  const root=$('#page-history');root.innerHTML='';
+  root.appendChild(el('div','anim','<h2 class="sec">历史资金流向 · 月度汇总</h2>'));
+  // monthly fund summary across all fund dates
+  const months={};
+  allDatesOf(FUND).forEach(d=>{const ym=d.slice(0,7);(months[ym]=months[ym]||{in:0,out:0,net:0,ind:0,con:0,days:new Set()});
+    const e=FUND[d];if(e['行业']){e['行业'].forEach(x=>{months[ym].in+=(x.inflow||0);months[ym].out+=(x.outflow||0);months[ym].net+=(x.net||0);months[ym].ind++;});}
+    if(e['概念']){e['概念'].forEach(x=>{months[ym].net+=(x.net||0);months[ym].con++;});}
+    months[ym].days.add(d);});
+  const card=el('div','card anim d1');
+  const w=el('div','tbl-wrap');const t=el('table');
+  t.innerHTML='<thead><tr><th class="l">月份</th><th>交易日</th><th>行业累计流入(亿)</th><th>行业累计流出(亿)</th><th>行业累计净额(亿)</th><th>概念累计净额(亿)</th></tr></thead>';
+  const tb=el('tbody');
+  Object.keys(months).sort().forEach(ym=>{const m=months[ym];const tr=el('tr');
+    tr.innerHTML=`<td class="l"><b>${ym}</b></td><td>${m.days.size}</td><td class="tnum up">${fNum(m.in)}</td><td class="tnum down">${fNum(m.out)}</td><td class="tnum ${m.net>=0?'up':'down'}">${fNum(m.net)}</td><td class="tnum ${m.con>=0?'up':'down'}">${fNum(m.net)}</td>`;
+    tb.appendChild(tr);});
+  t.appendChild(tb);w.appendChild(t);card.appendChild(w);root.appendChild(card);
+
+  // top boards history
+  root.appendChild(el('div','anim d2','<h2 class="sec">强势板块历史出现次数 · Top 20</h2>'));
+  const bs={};
+  allDatesOf(SW).forEach(d=>{(SW[d][state.caliber]?SW[d][state.caliber].strong:[]).forEach(b=>{bs[b.name]=(bs[b.name]||0)+1;});});
+  const arr=Object.entries(bs).sort((a,b)=>b[1]-a[1]).slice(0,20);
+  const c2=el('div','card anim d2');c2.style.marginTop='12px';
+  c2.appendChild(rankTable(['强势板块','出现天数'],arr.map(r=>[r[0],r[1]])));
+  root.appendChild(c2);
+
+  root.appendChild(el('div','anim d3 tiny muted',`<div style="margin-top:16px">数据区间：${META.date_min} ~ ${META.date_max}，共 ${META.days_count} 个交易日。强弱板块/2-6 股票覆盖全年，资金流向覆盖 6-8 月。</div>`));
+}
+
+// ================= board click -> modal =================
+document.addEventListener('click',e=>{
+  const bn=e.target.closest('.bname');
+  if(bn&&bn.dataset.board){openBoard(bn.dataset.board);}
+});
+function openBoard(name){
+  // find occurrences across recent 30 days in strong/weak
+  const items=[];
+  allDatesOf(SW).slice(-60).forEach(d=>{
+    const e=SW[d]&&SW[d][state.caliber];if(!e)return;
+    const s=e.strong.find(b=>b.name===name);if(s)items.push({d,kind:'强',b:s});
+    const w=e.weak.find(b=>b.name===name);if(w)items.push({d,kind:'弱',b:w});
+  });
+  const m=$('#modal');
+  let html=`<div class="bar"></div><h3>${name}</h3><div class="tiny muted">口径：${state.caliber} ｜ 近 60 日出现 ${items.length} 次</div><div style="margin-top:12px">`;
+  if(!items.length)html+='<div class="muted">近 60 日未在 Top10 中出现。</div>';
+  else html+='<div class="tbl-wrap"><table><thead><tr><th class="l">日期</th><th>类型</th><th>涨幅</th><th>领涨股</th><th>领涨%</th></tr></thead><tbody>'+
+    items.map(it=>`<tr><td class="l">${it.d}</td><td><span class="pill ${it.kind==='强'?'red':'green'}">${it.kind}</span></td><td>${pc(it.b.pct)}</td><td class="l">${it.b.leader?it.b.leader.name:'—'}</td><td>${it.b.leader?pc(it.b.leader.pct):'—'}</td></tr>`).join('')+'</tbody></table></div>';
+  html+='</div><div style="text-align:right;margin-top:14px"><button class="btn ghost" onclick="closeModal()">关闭</button></div>';
+  m.innerHTML=html;$('#modalBg').classList.add('show');
+}
+function closeModal(){$('#modalBg').classList.remove('show');}
+$('#modalBg').onclick=e=>{if(e.target.id==='modalBg')closeModal();};
+
+  $('#side-date').textContent=META.date_max;
+  $('#side-meta').textContent=`${META.days_count} 交易日 · ${META.date_min}~${META.date_max}`;
+  setPage('home');
+  window.closeModal=closeModal;
+}
+// ================= bootstrap =================
+function hideLoading(){const ld=document.getElementById('loading');if(ld)ld.remove();}
+// 内联模式（本地离线文件）：占位符已被替换为真实数据，立即启动。
+// 外壳模式（线上 GitHub Pages）：先拉取 data.json，成功后再启动，期间显示"加载中"。
+if(DATA){ hideLoading(); startApp(); }
+else {
+  fetch('data.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+    .then(d=>{ DATA=d; hideLoading(); startApp(); })
+    .catch(e=>{ const ld=document.getElementById('loading'); if(ld) ld.innerHTML='<div style="font-size:30px">⚠️</div>数据加载失败：'+e.message+'<br><span class="tiny">请检查网络后刷新页面重试</span>'; });
+}
+</script>
+</body>
+</html>
