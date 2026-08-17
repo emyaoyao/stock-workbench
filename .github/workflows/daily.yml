@@ -1,0 +1,46 @@
+name: 股票板块数据工作台 每日更新
+
+on:
+  schedule:
+    - cron: "15 7 * * 1-5"          # 北京 15:15（UTC 07:15），周一至周五
+  workflow_dispatch: {}            # 允许手动触发测试
+
+permissions:
+  contents: write                  # 用于把更新后的数据/产物 git 提交回仓库
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      # ① 核心：拉取 fuyao 强弱/区间 + 同花顺资金流 → 合并 workbench_data.json → 重生数据
+      - name: 核心数据更新
+        env:
+          HITHINK_FINANCE_API_KEY: ${{ secrets.HITHINK_FINANCE_API_KEY }}
+          WB_HTML_OUT: "workbench_full.html"
+        run: python daily_update_cyber.py
+
+      # ② 生成 Pages 产物（index.html / data.json / .nojekyll）到仓库根，跳过 API 推送改走 git
+      - name: 生成 Pages 产物
+        env:
+          WB_SKIP_PUSH: "1"
+          WB_PUBLISH_DIR: "."
+        run: python publish_pages.py
+
+      # ③ 提交并推送（GITHUB_TOKEN 内置，无需额外 Secret）
+      - name: 提交并推送
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${TOKEN}@github.com/emyaoyao/stock-workbench.git"
+          git add workbench_data.json index.html data.json .nojekyll
+          git diff --cached --quiet || git commit -m "daily update $(date +%F)"
+          git push
