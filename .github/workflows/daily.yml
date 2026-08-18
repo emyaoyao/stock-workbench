@@ -2,7 +2,9 @@ name: 股票板块数据工作台 每日更新
 
 on:
   schedule:
-    - cron: "15 7 * * 1-5"          # 北京 15:15（UTC 07:15），周一至周五
+    - cron: "5 7 * * 1-5"           # 北京 15:05（UTC 07:05），主更新
+    - cron: "15 7 * * 1-5"          # 北京 15:15（UTC 07:15），自动验证 / 兜底
+    - cron: "35 7 * * 1-5"          # 北京 15:35（UTC 07:35），自动验证 / 兜底
   workflow_dispatch: {}            # 允许手动触发测试
 
 permissions:
@@ -20,6 +22,7 @@ jobs:
           python-version: "3.13"
 
       # ① 核心：拉取 fuyao 强弱/区间 + 同花顺资金流 → 合并 workbench_data.json → 重生数据
+      #    已内置幂等跳过：若 meta.date_max 已是今天则直接退出，不重复抓取 / 提交
       - name: 核心数据更新
         env:
           HITHINK_FINANCE_API_KEY: ${{ secrets.HITHINK_FINANCE_API_KEY }}
