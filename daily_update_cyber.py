@@ -154,8 +154,24 @@ def merge_and_save(dd, payload):
     return len(alld)
 
 
+def already_updated_today():
+    """若 workbench_data.json 的 meta.date_max 已是今天(北京时间)，视为已更新，可安全跳过。"""
+    if not os.path.exists(DATA):
+        return False
+    try:
+        data = json.load(open(DATA, encoding="utf-8"))
+        dm = data.get("meta", {}).get("date_max", "")
+        return dm == now().strftime("%Y-%m-%d")
+    except Exception:
+        return False
+
+
 def main():
+    force = "--force" in sys.argv
     no_inject = "--no-inject" in sys.argv
+    if not force and already_updated_today():
+        print(f"[skip] meta.date_max 已是今天（{now().strftime('%Y-%m-%d')}），无需重复更新，退出。")
+        return
     t0 = time.time()
     print("[build] 拉取 fuyao + 爬虫 ...", flush=True)
     try:
