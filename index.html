@@ -593,7 +593,9 @@ function setPage(p){
   const titles={home:'<span class="neon">●</span> 首页',board:'<span class="neon">●</span> 数据看板',history:'<span class="neon">●</span> 历史记录'};
   $('#topTitle').innerHTML=titles[p];
   closeSidebar();
-  if(p==='home')renderHome();else if(p==='board')renderBoard();else renderHistory();
+  if(p==='home')renderHome();
+  else if(p==='board')renderBoard();
+  else if(p==='history')renderHistory();
 }
 $$('.navbtn').forEach(b=>b.onclick=()=>setPage(b.dataset.page));
 $$('#bottomtab button').forEach(b=>b.onclick=()=>setPage(b.dataset.page));
@@ -668,10 +670,10 @@ function renderHome(){
     <div class="grid cols-3" style="gap:14px">
       <div class="row" style="flex-direction:column;align-items:flex-start;gap:4px"><span class="muted tiny">最强板块</span>
         <b style="color:var(--up)">${sEntry.name||'—'} ${sEntry.pct!=null?pc(sEntry.pct):''}</b>
-        <span class="tiny muted">领涨 ${sEntry.leader?sEntry.leader.name:'—'} ${sEntry.leader?pc(sEntry.leader.pct):''}</span></div>
+        <span class="tiny muted">领涨 ${sEntry.leader?(sEntry.leader.name+(sEntry.leader.board?'('+sEntry.leader.board+')':'')):'—'} ${sEntry.leader?pc(sEntry.leader.pct):''}</span></div>
       <div class="row" style="flex-direction:column;align-items:flex-start;gap:4px"><span class="muted tiny">最弱板块</span>
         <b style="color:var(--down)">${wEntry.name||'—'} ${wEntry.pct!=null?pc(wEntry.pct):''}</b>
-        <span class="tiny muted">领跌 ${wEntry.laggard?wEntry.laggard.name:'—'} ${wEntry.laggard?pc(wEntry.laggard.pct):''}</span></div>
+        <span class="tiny muted">领跌 ${wEntry.laggard?(wEntry.laggard.name+(wEntry.laggard.board?'('+wEntry.laggard.board+')':'')):'—'} ${wEntry.laggard?pc(wEntry.laggard.pct):''}</span></div>
       <div class="row" style="flex-direction:column;align-items:flex-start;gap:4px"><span class="muted tiny">行业资金净流入第一</span>
         <b style="color:var(--up)">${topInd.name||'—'} ${topInd.net!=null?nc(topInd.net)+' 亿':''}</b></div>
       <div class="row" style="flex-direction:column;align-items:flex-start;gap:4px"><span class="muted tiny">概念资金净流入第一</span>
@@ -889,10 +891,10 @@ function boardTable(list,cls,title,cal,kind,scopeLabel){
       `<td>${pc(b.pct)}</td>`+
       `<td><span class="cnt">${secCnt}</span><span class="tiny muted"> 次</span></td>`+
       `<td>${b.up??'—'}</td><td>${b.down??'—'}</td><td>${b.limit_up??'—'}</td>`+
-      `<td class="l">${b.leader?b.leader.name:'—'}</td><td>${b.leader?pc(b.leader.pct):'—'}</td>`;
+      `<td class="l">${b.leader?(b.leader.name+(b.leader.board?'('+b.leader.board+')':'')):'—'}</td><td>${b.leader?pc(b.leader.pct):'—'}</td>`;
     if(kind==='strong'){
       row += `<td><span class="cnt">${stockCnt}</span><span class="tiny muted"> 次</span></td>`+
-             `<td class="l">${b.laggard?b.laggard.name:'—'}</td><td>${b.laggard?pc(b.laggard.pct):'—'}</td>`;
+             `<td class="l">${b.laggard?(b.laggard.name+(b.laggard.board?'('+b.laggard.board+')':'')):'—'}</td><td>${b.laggard?pc(b.laggard.pct):'—'}</td>`;
     }else{
       row += `<td class="l">${b.laggard?b.laggard.name:'—'}</td><td>${b.laggard?pc(b.laggard.pct):'—'}</td>`+
              `<td><span class="cnt">${stockCnt}</span><span class="tiny muted"> 次</span></td>`;
@@ -1187,6 +1189,7 @@ function renderHistory(){
 
   root.appendChild(el('div','anim d3 tiny muted',`<div style="margin-top:16px">数据区间：${META.date_min} ~ ${META.date_max}，共 ${META.days_count} 个交易日。强弱板块/2-6 股票覆盖全年，资金流向覆盖 6-8 月。</div>`));
 }
+
 
 // ================= board click -> modal =================
 document.addEventListener('click',e=>{
