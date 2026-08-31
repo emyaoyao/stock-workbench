@@ -1,0 +1,17 @@
+# 敏感凭证
+credentials.env
+.env
+
+# 运行时生成的产物
+股票板块数据工作台.html
+publish/
+pipeline_cache.json
+pipeline_data.json
+
+# 历史仓库大数据（自行拉取/构建，不入库）
+hist_warehouse/warehouse/
+*.duckdb
+*.parquet
+
+# 龙头股回填运行时缓存（自动下载的日K/成分股映射，不入库）
+.blcache/
