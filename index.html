@@ -166,6 +166,8 @@ tbody tr:hover{background:rgba(120,160,255,.07)}
 .rank.top{background:linear-gradient(135deg,var(--magenta),var(--violet));color:#fff}
 .bname{font-weight:700;color:var(--text);cursor:pointer}
 .bname:hover{color:var(--cyan);text-shadow:0 0 8px rgba(22,242,230,.5)}
+.leading{margin-top:3px;font-size:11px;line-height:1.5;color:var(--muted);font-weight:500}
+.leading b{color:var(--cyan);font-weight:700}
 .cnt{display:inline-block;min-width:20px;text-align:center;font-weight:800;color:var(--cyan);text-shadow:0 0 8px rgba(22,242,230,.45)}
 .chip{display:inline-block;padding:1px 7px;border-radius:6px;font-size:11.5px;background:rgba(120,160,255,.1);margin:1px}
 
@@ -256,7 +258,7 @@ let DATA = undefined;
 let SW,BAND,FUND,META,BS;
 // 数据就绪后统一初始化（内联模式立即调用；外壳模式在 fetch 成功后调用）
 function startApp(){
-  SW=DATA.strongWeak; BAND=DATA.band; FUND=DATA.fund; META=DATA.meta; BS=DATA.boardStats||{};
+  SW=DATA.strongWeak; BAND=DATA.band; FUND=DATA.fund; META=DATA.meta; BS=DATA.boardStats||{}; LD=DATA.leading||{};
 const $=(s,r=document)=>r.querySelector(s);
 const $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const el=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;};
@@ -645,6 +647,7 @@ function renderHome(){
   const cards=[
     {t:'强弱板块',ic:'⚡',c:'var(--cyan)',d:'每日最强、最弱各 10 个板块（综合/一级行业/概念）',m:'sw'},
     {t:'2%–6% 股票',ic:'🎯',c:'var(--magenta)',d:'强势板块涨幅 2%–6% 区间个股明细',m:'band'},
+    {t:'龙头股',ic:'👑',c:'#ffcf5c',d:'同花顺板块页标注的龙头股对照（按板块独立展示）',m:'leading'},
     {t:'行业资金流向',ic:'🏭',c:'var(--green)',d:'行业板块每日流入/流出/净额排行',m:'fund_ind'},
     {t:'概念资金流向',ic:'💡',c:'var(--violet)',d:'概念板块资金净流入/流出与净额',m:'fund_con'},
     {t:'统计排行',ic:'🏆',c:'var(--red)',d:'板块与股票在月/年内的出现次数与持续强度',m:'stats'},
@@ -670,10 +673,10 @@ function renderHome(){
     <div class="grid cols-3" style="gap:14px">
       <div class="row" style="flex-direction:column;align-items:flex-start;gap:4px"><span class="muted tiny">最强板块</span>
         <b style="color:var(--up)">${sEntry.name||'—'} ${sEntry.pct!=null?pc(sEntry.pct):''}</b>
-        <span class="tiny muted">领涨 ${sEntry.leader?(sEntry.leader.name+(sEntry.leader.board?'('+sEntry.leader.board+')':'')):'—'} ${sEntry.leader?pc(sEntry.leader.pct):''}</span></div>
+        <span class="tiny muted">领涨 ${sEntry.leader?sEntry.leader.name:'—'} ${sEntry.leader?pc(sEntry.leader.pct):''}</span></div>
       <div class="row" style="flex-direction:column;align-items:flex-start;gap:4px"><span class="muted tiny">最弱板块</span>
         <b style="color:var(--down)">${wEntry.name||'—'} ${wEntry.pct!=null?pc(wEntry.pct):''}</b>
-        <span class="tiny muted">领跌 ${wEntry.laggard?(wEntry.laggard.name+(wEntry.laggard.board?'('+wEntry.laggard.board+')':'')):'—'} ${wEntry.laggard?pc(wEntry.laggard.pct):''}</span></div>
+        <span class="tiny muted">领跌 ${wEntry.laggard?wEntry.laggard.name:'—'} ${wEntry.laggard?pc(wEntry.laggard.pct):''}</span></div>
       <div class="row" style="flex-direction:column;align-items:flex-start;gap:4px"><span class="muted tiny">行业资金净流入第一</span>
         <b style="color:var(--up)">${topInd.name||'—'} ${topInd.net!=null?nc(topInd.net)+' 亿':''}</b></div>
       <div class="row" style="flex-direction:column;align-items:flex-start;gap:4px"><span class="muted tiny">概念资金净流入第一</span>
@@ -701,6 +704,7 @@ function gotoModule(m,period){
 const MODULES=[
   {id:'sw',label:'⚡ 强弱板块'},
   {id:'band',label:'🎯 2%–6% 股票'},
+  {id:'leading',label:'👑 龙头股'},
   {id:'fund_ind',label:'🏭 行业资金流向'},
   {id:'fund_con',label:'💡 概念资金流向'},
   {id:'stats',label:'🏆 统计排行'},
@@ -719,6 +723,7 @@ function renderBoard(){
   try{
     if(state.module==='sw')renderSW(c);
     else if(state.module==='band')renderBand(c);
+    else if(state.module==='leading')renderLeading(c);
     else if(state.module==='fund_ind'||state.module==='fund_con')renderFund(c);
     else if(state.module==='stats')renderStats(c);
   }catch(err){c.innerHTML='<div class="warnbar">渲染出错：'+err.message+'</div>';console.error(err);}
@@ -887,14 +892,15 @@ function boardTable(list,cls,title,cal,kind,scopeLabel){
     if(kind==='strong'){ stockCnt = (b.leader&&b.leader.name)? (st.stock[b.leader.name]||0):0; }
     else { stockCnt = (b.laggard&&b.laggard.name)? (st.stock[b.laggard.name]||0):0; }
     let row = `<td><span class="rank ${b.rank===1?'top':''}">${b.rank}</span></td>`+
-      `<td class="l"><span class="bname" data-board="${b.name}">${b.name}</span></td>`+
+      `<td class="l"><span class="bname" data-board="${b.name}">${b.name}</span>`+
+      `</td>`+
       `<td>${pc(b.pct)}</td>`+
       `<td><span class="cnt">${secCnt}</span><span class="tiny muted"> 次</span></td>`+
       `<td>${b.up??'—'}</td><td>${b.down??'—'}</td><td>${b.limit_up??'—'}</td>`+
-      `<td class="l">${b.leader?(b.leader.name+(b.leader.board?'('+b.leader.board+')':'')):'—'}</td><td>${b.leader?pc(b.leader.pct):'—'}</td>`;
+      `<td class="l">${b.leader?b.leader.name:'—'}</td><td>${b.leader?pc(b.leader.pct):'—'}</td>`;
     if(kind==='strong'){
       row += `<td><span class="cnt">${stockCnt}</span><span class="tiny muted"> 次</span></td>`+
-             `<td class="l">${b.laggard?(b.laggard.name+(b.laggard.board?'('+b.laggard.board+')':'')):'—'}</td><td>${b.laggard?pc(b.laggard.pct):'—'}</td>`;
+             `<td class="l">${b.laggard?b.laggard.name:'—'}</td><td>${b.laggard?pc(b.laggard.pct):'—'}</td>`;
     }else{
       row += `<td class="l">${b.laggard?b.laggard.name:'—'}</td><td>${b.laggard?pc(b.laggard.pct):'—'}</td>`+
              `<td><span class="cnt">${stockCnt}</span><span class="tiny muted"> 次</span></td>`;
@@ -945,6 +951,56 @@ function renderBand(root){
     list.appendChild(col);
   });
   root.appendChild(list);
+}
+
+// ================= 龙头股 =================
+// 数据来源：leading_stocks.json（人工维护「板块名→龙头股名」），build_leading.py 解析代码+上市板后写入 DATA.leading
+// 结构：{ 板块名: [ {name, code, board(主/创/科/北)}, ... ] }
+// 与 2%-6% 不同，龙头股是按板块的静态对照表（不随交易日变化），故独立于强弱板块单独成页展示；
+// 选中交易日时，高亮当日进入强/弱榜的龙头板块，方便对照「该板块火的时候龙头是谁」。
+function renderLeading(root){
+  const LD0 = LD||{};
+  const sectors = Object.keys(LD0);
+  if(!sectors.length){
+    root.innerHTML='<div class="empty">暂无龙头股对照数据。请在 leading_stocks.json 中按「板块名: [龙头股名...]」维护，并重跑 build_leading.py 后发布。</div>';
+    return;
+  }
+  root.appendChild(el('div','card',`<div class="muted">共 <b style="color:var(--cyan)">${sectors.length}</b> 个板块维护有龙头股对照（来源：同花顺板块页标注，人工维护 <code>leading_stocks.json</code>）。各板块龙头股数量不一，故独立于强弱板块单独展示。</div>`));
+  // 当日进榜状态（跨口径：综合/一级行业/概念任一命中即视为进榜）
+  const statusOf = sec=>{
+    if(!state.date) return '';
+    for(const c of (META.calibers.strongWeak||['综合'])){
+      const o = SW[state.date] && SW[state.date][c]; if(!o) continue;
+      if((o.strong||[]).some(b=>b.name===sec)) return 'strong';
+      if((o.weak||[]).some(b=>b.name===sec)) return 'weak';
+    }
+    return '';
+  };
+  // 排序：当日进榜的排前（强>弱），其余按板块名
+  sectors.sort((a,b)=>{
+    const ra=(statusOf(a)==='strong'?2:statusOf(a)==='weak'?1:0);
+    const rb=(statusOf(b)==='strong'?2:statusOf(b)==='weak'?1:0);
+    return rb-ra || a.localeCompare(b,'zh');
+  });
+  const grid = el('div','grid cols-3'); grid.style.marginTop='12px';
+  sectors.forEach(sec=>{
+    const arr = LD0[sec]||[];
+    const st = statusOf(sec);
+    const badge = st==='strong'?'<span class="pill red">当日强势</span>'
+                : st==='weak'  ?'<span class="pill green">当日弱势</span>':'';
+    const chips = arr.map(s=>`<span class="chip" title="${s.code||'未解析代码'}">${s.name}${s.board?`(${s.board})`:''}</span>`).join('');
+    const card = el('div','card'); card.style.marginBottom='12px';
+    card.innerHTML =
+      `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">`+
+        `<b style="font-size:15px;color:#fff">${sec}</b>${badge}</div>`+
+      `<div class="tiny muted" style="margin:5px 0 7px">${arr.length} 只龙头股</div>`+
+      `<div style="display:flex;flex-wrap:wrap;gap:6px">${chips}</div>`;
+    grid.appendChild(card);
+  });
+  root.appendChild(grid);
+  const note = el('div','anim d4 tiny muted'); note.style.marginTop='14px';
+  note.innerHTML='说明：龙头股为同花顺在各板块页标注的「龙头股」列表，属人工维护的对照表，非程序化自动抓取。要新增板块/股票，编辑 leading_stocks.json 后重跑 build_leading.py。'+(state.date?` 已高亮 <b>${state.date}</b> 当日进榜板块。`:'');
+  root.appendChild(note);
 }
 
 // ================= 资金流向 =================
